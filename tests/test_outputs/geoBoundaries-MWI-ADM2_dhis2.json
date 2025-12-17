@@ -1,0 +1,292 @@
+{
+  "organisationUnits": [
+    {
+      "id": "LT7SMe7h65o",
+      "name": "Malawi",
+      "shortName": "Malawi",
+      "code": "MWI",
+      "openingDate": "2025-08-22",
+      "level": 1
+    },
+    {
+      "id": "Nn1agHmJ3Ee",
+      "name": "Balaka",
+      "shortName": "Balaka",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "OW2UcN9wZKa",
+      "name": "Blantyre",
+      "shortName": "Blantyre",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "E93nORJC2iF",
+      "name": "Chikwawa",
+      "shortName": "Chikwawa",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "WvpZEaXgKMD",
+      "name": "Chiradzulu",
+      "shortName": "Chiradzulu",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "Wzswq8FIvq0",
+      "name": "Chitipa",
+      "shortName": "Chitipa",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "G9bwcvnudnX",
+      "name": "Dedza",
+      "shortName": "Dedza",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "NBkGZE4yzy0",
+      "name": "Dowa",
+      "shortName": "Dowa",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "K9bKYN6Qs3i",
+      "name": "Karonga",
+      "shortName": "Karonga",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "PARU0KEV5st",
+      "name": "Kasungu",
+      "shortName": "Kasungu",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "KkLpY38aPYq",
+      "name": "Likoma",
+      "shortName": "Likoma",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "PdctH2eKDQj",
+      "name": "Lilongwe",
+      "shortName": "Lilongwe",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "BimGQ5mMzhg",
+      "name": "Machinga",
+      "shortName": "Machinga",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "NdKopnwTkiU",
+      "name": "Mangochi",
+      "shortName": "Mangochi",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "LIUSEkt2SNj",
+      "name": "Mchinji",
+      "shortName": "Mchinji",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "Xgvw3GeLSKd",
+      "name": "Mulanje",
+      "shortName": "Mulanje",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "MuoKl22ib6x",
+      "name": "Mwanza",
+      "shortName": "Mwanza",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "GXaHKX9xxyq",
+      "name": "Mzimba",
+      "shortName": "Mzimba",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "Wr0qoJDfDQw",
+      "name": "Neno",
+      "shortName": "Neno",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "QfCE6Ui2tw8",
+      "name": "Nkhata Bay",
+      "shortName": "Nkhata Bay",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "THthaDTTsz9",
+      "name": "Nkhotakota",
+      "shortName": "Nkhotakota",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "UBWLg0OtUd4",
+      "name": "Nsanje",
+      "shortName": "Nsanje",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "MSp4kso2U26",
+      "name": "Ntcheu",
+      "shortName": "Ntcheu",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "V5K8Q1GwL96",
+      "name": "Ntchisi",
+      "shortName": "Ntchisi",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "S2PxsdwRP8g",
+      "name": "Phalombe",
+      "shortName": "Phalombe",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "A9qcHOvItFV",
+      "name": "Rumphi",
+      "shortName": "Rumphi",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "PRL8KGBPg44",
+      "name": "Salima",
+      "shortName": "Salima",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "GqvZHh25Oha",
+      "name": "Thyolo",
+      "shortName": "Thyolo",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    },
+    {
+      "id": "QlK1x6gr5AR",
+      "name": "Zomba",
+      "shortName": "Zomba",
+      "openingDate": "2025-08-22",
+      "level": 2,
+      "parent": {
+        "id": "LT7SMe7h65o"
+      }
+    }
+  ]
+}
