@@ -12,6 +12,8 @@ dependencies = [
     "earthkit-data[netcdf,geotiff,geopandas,projection,cds]",
     "xarray",
     "pandas",
+    "rasterio",
+    "numpy",
 ]
 
 [tool.setuptools.packages.find]
