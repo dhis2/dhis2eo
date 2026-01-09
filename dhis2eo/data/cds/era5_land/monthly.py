@@ -1,31 +1,33 @@
 import json
 import logging
+
 import earthkit.data
 import xarray as xr
 
-from ...utils import netcdf_cache, force_logging
+from ...utils import force_logging, netcdf_cache
 
 logger = logging.getLogger(__name__)
 force_logging(logger)
 
 DEFAULT_VARIABLES = [
-    '2m_temperature',
-    'total_precipitation',
+    "2m_temperature",
+    "total_precipitation",
 ]
 
 # Try to fix CDS cache issue by setting download threads to 1
 config = earthkit.data.config
-config.set('number-of-download-threads', 1)
+config.set("number-of-download-threads", 1)
+
 
 @netcdf_cache()
 def get(years, months, bbox, variables=None):
-    '''Download monthly era5-land data'''
+    """Download monthly era5-land data"""
 
     # get default variables
     variables = variables or DEFAULT_VARIABLES
-    
+
     # extract the coordinates from input bounding box
-    xmin,ymin,xmax,ymax = map(float, bbox)
+    xmin, ymin, xmax, ymax = map(float, bbox)
 
     # construct the query parameters
     params = {
@@ -34,21 +36,18 @@ def get(years, months, bbox, variables=None):
         "year": [str(year) for year in years],
         "month": [str(month).zfill(2) for month in months],
         "time": ["00:00"],
-        "area": [ymax, xmin, ymin, xmax], # notice how we reordered the bbox coordinate sequence
+        "area": [ymax, xmin, ymin, xmax],  # notice how we reordered the bbox coordinate sequence
         "data_format": "netcdf",
         "download_format": "unarchived",
     }
 
     # download the data
-    logger.info(f'Downloading data from CDS API...')
-    logger.info(f'Request parameters: \n{json.dumps(params)}')
-    data = earthkit.data.from_source("cds",
-        "reanalysis-era5-land-monthly-means",
-        **params
-    )
+    logger.info("Downloading data from CDS API...")
+    logger.info(f"Request parameters: \n{json.dumps(params)}")
+    data = earthkit.data.from_source("cds", "reanalysis-era5-land-monthly-means", **params)
 
     # load lazily from disk using xarray
     data_array = xr.open_dataset(data.path)
-    
+
     # return
     return data_array
