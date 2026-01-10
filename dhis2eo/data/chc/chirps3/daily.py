@@ -125,10 +125,15 @@ def get(
         )
         
         # Read only the bbox window
-        da_clipped = da.rio.clip_box(minx=xmin, miny=ymin, maxx=xmax, maxy=ymax)
+        da = da.rio.clip_box(minx=xmin, miny=ymin, maxx=xmax, maxy=ymax)
         
-        # Collect datasets and times extracted from filenames
-        das.append(da_clipped)
+        # Ensure nodata value is masked and added to metadata
+        nodata = -9999.0 # this should be the chirps3 nodata value
+        da = da.where(da != nodata) # this adds nans where nodata for plotting
+        da.rio.write_nodata(nodata, encoded=True, inplace=True) # should write to metadata for future saving
+
+        # Collect data array and time extracted from filename
+        das.append(da)
         times.append(np.datetime64(d))
 
     # Stack daily slices along the time dimension
