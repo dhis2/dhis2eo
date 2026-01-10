@@ -2,6 +2,8 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import Iterable, List, Tuple, Union
 
+from ....utils.time import iter_days, ensure_date
+
 import numpy as np
 import xarray as xr
 import rioxarray
@@ -34,38 +36,6 @@ DEFAULT_STAGE = "final"
 # - For prelim: directory is "sat" but filename tag is "prelim"
 DEFAULT_FLAVOR = "rnl"
 
-
-# -----------------------------------------------------------------------------
-# Helper functions: dates and iteration
-# -----------------------------------------------------------------------------
-
-def _ensure_date(d: Union[str, date, datetime]) -> date:
-    """
-    Normalize input into a `date` object.
-    Accepts:
-    - YYYY-MM-DD strings
-    - datetime.datetime
-    - datetime.date
-    This keeps the public API flexible while ensuring internal consistency.
-    """
-    if isinstance(d, datetime):
-        return d.date()
-    if isinstance(d, date):
-        return d
-    return datetime.strptime(str(d), "%Y-%m-%d").date()
-
-
-def _iter_days(start: date, end: date) -> Iterable[date]:
-    """
-    Yield all dates from `start` to `end`, inclusive.
-    Used to build the time dimension one day at a time.
-    """
-    cur = start
-    while cur <= end:
-        yield cur
-        cur = cur + timedelta(days=1)
-
-
 # -----------------------------------------------------------------------------
 # URL construction (provider-specific logic)
 # -----------------------------------------------------------------------------
@@ -86,7 +56,7 @@ def url_for_day(
       /products/CHIRPS/v3.0/daily/prelim/sat/{YYYY}/
       chirps-v3.0.prelim.{YYYY}.{MM}.{DD}.tif
     """
-    dd = _ensure_date(d)
+    dd = ensure_date(d)
 
     if stage not in {"final", "prelim"}:
         raise ValueError("stage must be 'final' or 'prelim'")
@@ -108,7 +78,6 @@ def url_for_day(
         f"{dd.year}/chirps-v3.0.prelim.{dd.year}.{dd.month:02d}.{dd.day:02d}.tif"
     )
 
-
 # -----------------------------------------------------------------------------
 # Public API: download and stack daily CHIRPS into an xarray Dataset
 # -----------------------------------------------------------------------------
@@ -129,8 +98,8 @@ def get(
     - one variable: `var_name` (default: precip)
     - dimensions: (time, y, x)
     """
-    start_d = _ensure_date(start)
-    end_d = _ensure_date(end)
+    start_d = ensure_date(start)
+    end_d = ensure_date(end)
     if end_d < start_d:
         raise ValueError("end must be on/after start")
 
@@ -143,7 +112,7 @@ def get(
 
     # Loop over days, read each bbox window, and collect 
     xmin, ymin, xmax, ymax = bbox
-    for d in _iter_days(start_d, end_d):
+    for d in iter_days(start_d, end_d):
         
         # Get file url based on the day
         url = url_for_day(d, stage=stage, flavor=flavor)
