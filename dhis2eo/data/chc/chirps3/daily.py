@@ -3,9 +3,8 @@ from datetime import date, datetime, timedelta
 from typing import Iterable, List, Tuple, Union
 
 import numpy as np
-import rasterio
-from rasterio.windows import from_bounds
 import xarray as xr
+import rioxarray
 
 from ...utils import netcdf_cache, force_logging
 
@@ -111,83 +110,10 @@ def url_for_day(
 
 
 # -----------------------------------------------------------------------------
-# Raster I/O: read only the bbox window into xarray
-# -----------------------------------------------------------------------------
-
-def _read_bbox_as_dataarray(
-    url: str,
-    bbox: BBox,
-    var_name: str = "precip",
-) -> xr.DataArray:
-    """
-    Read only the raster window intersecting `bbox` from a remote GeoTIFF
-    and return it as an xarray.DataArray.
-    Key design choice:
-    - Use rasterio windowed reads to avoid loading global rasters.
-    """
-    minx, miny, maxx, maxy = bbox
-
-    try:
-        with rasterio.open(url) as src:
-            # Convert lon/lat bounds into pixel window coordinates
-            win = from_bounds(minx, miny, maxx, maxy, transform=src.transform)
-            win = win.round_offsets().round_lengths()
-
-            # Clamp window to raster extent to avoid edge errors
-            full = rasterio.windows.Window(0, 0, src.width, src.height)
-            try:
-                win = win.intersection(full)
-            except Exception as e:
-                raise ValueError(
-                    f"Requested bbox {bbox} does not intersect raster extent "
-                    f"({src.bounds}) for {url}"
-                ) from e
-
-            # Read only band 1 for the requested window
-            data = src.read(1, window=win, masked=True)
-            transform = src.window_transform(win)
-
-            # Convert to float32 and replace masked values with NaN
-            arr = data.astype("float32")
-            if np.ma.isMaskedArray(arr):
-                arr = arr.filled(np.nan)
-
-            # Build coordinate vectors (pixel centers) from affine transform
-            height, width = arr.shape
-            t = transform  # affine.Affine
-            xs = t.c + t.a * (np.arange(width) + 0.5)
-            ys = t.f + t.e * (np.arange(height) + 0.5)
-
-            # Assemble metadata, avoiding NetCDF-invalid values (e.g. None)
-            attrs = {
-                "crs": str(src.crs) if src.crs else "unknown",
-                "source_url": url,
-            }
-            if src.nodata is not None:
-                attrs["nodata"] = float(src.nodata)
-
-            return xr.DataArray(
-                arr,
-                dims=("y", "x"),
-                coords={"x": xs, "y": ys},
-                name=var_name,
-                attrs=attrs,
-            )
-
-    except rasterio.errors.RasterioIOError as e:
-        # Surface URL explicitly to make debugging 404s easier
-        raise rasterio.errors.RasterioIOError(
-            f"Failed to open CHIRPS GeoTIFF (likely 404).\n"
-            f"URL: {url}\n"
-            f"Original error: {e}"
-        ) from e
-
-
-# -----------------------------------------------------------------------------
 # Public API: download and stack daily CHIRPS into an xarray Dataset
 # -----------------------------------------------------------------------------
 
-@netcdf_cache()
+#@netcdf_cache()
 def get(
     start: Union[str, date, datetime],
     end: Union[str, date, datetime],
@@ -215,12 +141,25 @@ def get(
     das: List[xr.DataArray] = []
     times: List[np.datetime64] = []
 
-    # Loop over days, read each bbox window, and collect results
+    # Loop over days, read each bbox window, and collect 
+    xmin, ymin, xmax, ymax = bbox
     for d in _iter_days(start_d, end_d):
+        
+        # Get file url based on the day
         url = url_for_day(d, stage=stage, flavor=flavor)
         logger.info(f"Reading {d} -> {url}")
-        da = _read_bbox_as_dataarray(url, bbox=bbox, var_name=var_name)
-        das.append(da)
+        
+        # Connect to global dataset lazily
+        da = rioxarray.open_rasterio(
+            url,
+            chunks={'x': 1024, 'y': 1024}  # lazy Dask arrays
+        )
+        
+        # Read only the bbox window
+        da_clipped = da.rio.clip_box(minx=xmin, miny=ymin, maxx=xmax, maxy=ymax)
+        
+        # Collect datasets and times extracted from filenames
+        das.append(da_clipped)
         times.append(np.datetime64(d))
 
     # Stack daily slices along the time dimension
