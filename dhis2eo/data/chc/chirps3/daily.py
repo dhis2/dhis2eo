@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 from typing import Iterable, List, Tuple, Union
 
 from ....utils.time import iter_days, ensure_date
+from ....utils.types import BBox, DateLike
 
 import numpy as np
 import xarray as xr
@@ -19,12 +20,8 @@ logger = logging.getLogger(__name__)
 force_logging(logger)
 
 # -----------------------------------------------------------------------------
-# Type aliases and defaults
+# Defaults
 # -----------------------------------------------------------------------------
-
-# Bounding box type:
-# (min_lon, min_lat, max_lon, max_lat) in EPSG:4326 (lon/lat)
-BBox = Tuple[float, float, float, float]
 
 # CHIRPS v3 "stage":
 # - "final": finalized, stable product (recommended for analysis)
@@ -41,8 +38,7 @@ DEFAULT_FLAVOR = "rnl"
 # -----------------------------------------------------------------------------
 
 def url_for_day(
-    d: Union[str, date, datetime],
-    *,
+    d: DateLike,
     stage: str = DEFAULT_STAGE,
     flavor: str = DEFAULT_FLAVOR,
 ) -> str:
@@ -84,10 +80,9 @@ def url_for_day(
 
 #@netcdf_cache()
 def get(
-    start: Union[str, date, datetime],
-    end: Union[str, date, datetime],
+    start: DateLike,
+    end: DateLike,
     bbox: BBox,
-    *,
     stage: str = DEFAULT_STAGE,
     flavor: str = DEFAULT_FLAVOR,
     var_name: str = "precip",
@@ -107,8 +102,8 @@ def get(
     logger.info(f"Stage/flavor: {stage}/{flavor}")
     logger.info(f"BBox: {bbox}")
 
-    das: List[xr.DataArray] = []
-    times: List[np.datetime64] = []
+    das = []
+    times = []
 
     # Loop over days, read each bbox window, and collect 
     xmin, ymin, xmax, ymax = bbox

@@ -20,3 +20,4 @@ def test_download_daily_chirps3_data():
     org_units = gpd.read_file(geojson_file)
     data = chirps3.daily.get(start="2025-07-01", end="2025-07-03", bbox=org_units.total_bounds)
     logging.info(data)
+    assert len(data.time) == 3
