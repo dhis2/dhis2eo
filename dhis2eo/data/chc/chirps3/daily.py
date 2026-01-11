@@ -79,7 +79,7 @@ def url_for_day(
 def fetch_day(day, bbox, var_name, stage, flavor):
     # Get file url based on the day
     url = url_for_day(day, stage=stage, flavor=flavor)
-    logger.info(f"Reading {day} -> {url}")
+    logger.debug(f"Reading {day} -> {url}")
     
     # Connect to global dataset lazily
     da = rioxarray.open_rasterio(
@@ -117,10 +117,13 @@ def fetch_day(day, bbox, var_name, stage, flavor):
     return ds
 
 def fetch_month(year, month, bbox, var_name, stage, flavor):
-    # Loop and fetch data for all days in the month
+    # Determine start and end date for the month
     _, days_in_month = calendar.monthrange(year, month)
     start_day = date(year=year, month=month, day=1)
     end_day = date(year=year, month=month, day=days_in_month)
+
+    # Loop and fetch data for all days in the month
+    logger.info("Extracting and combining daily data from CHC servers...")
     ds_list = []
     for day in iter_days(start_day, end_day):
         day_ds = fetch_day(day, bbox, var_name, stage, flavor)

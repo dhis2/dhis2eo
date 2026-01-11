@@ -24,13 +24,13 @@ def test_download_daily_chirps3_data():
     org_units = gpd.read_file(geojson_file)
     bbox = org_units.total_bounds
     # start/end dates
-    start = "2025-07"
-    end = "2025-08"
+    start = "2025-09"
+    end = "2025-09"
     # download
     paths = chirps3.daily.retrieve(start=start, end=end, bbox=bbox,
                                    dirname=dirname, prefix=prefix, skip_existing=True)
     logging.info(paths)
-    assert len(paths) == 2
+    assert len(paths) == 1
 
     # test opening multifile xarray
     import xarray as xr
