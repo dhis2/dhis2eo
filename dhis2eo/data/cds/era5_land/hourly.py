@@ -59,8 +59,8 @@ def fetch_month(save_path, year, month, bbox, variables=None):
     # clean unnecessary data
     ds = ds.drop_vars(['number', 'expver'])
 
-    # save to target path
-    ds.to_netcdf(save_path)
+    # return
+    return ds
 
 
 # Public API to retrieve data for bbox between start and end date
@@ -80,22 +80,27 @@ def retrieve(
     start_year, start_month = map(int, start.split('-')[:2])
     end_year, end_month = map(int, end.split('-')[:2])
 
-    downloads = []
+    files = []
     for year, month in iter_months(start_year, start_month, end_year, end_month):
         logger.info(f'Month {year}-{month}')
 
         # determine the save path
         save_file = f'{prefix}_{year}-{str(month).zfill(2)}.nc'
         save_path = (Path(dirname) / save_file).resolve()
-        downloads.append(save_path)
+        files.append(save_path)
 
-        # download the data if doesnt exist
-        # TODO: also should redownload if this is the current month
+        # Skip if already exist
+        # TODO: should not skip if this is the current month
         if skip_existing and save_path.exists():
             logger.info(f'File already downloaded: {save_path}')
-        else:
-            fetch_month(save_path, year=year, month=month, 
+            continue
+        
+        # Download the data
+        ds = fetch_month(save_path, year=year, month=month, 
                             bbox=bbox, variables=variables)
+            
+        # Save to target path
+        ds.to_netcdf(save_path)
 
     # return list of all file downloads
-    return downloads
+    return files

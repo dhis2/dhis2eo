@@ -55,8 +55,8 @@ def fetch_country_year(year, country_code, save_path):
     # Add year constant
     ds = ds.expand_dims(time=[np.datetime64(str(year))])
 
-    # Save to target path
-    ds.to_netcdf(save_path)
+    # Return
+    return ds
 
 # def url_global_for_year(year):
 #     # generate url to download global geotiff
@@ -93,23 +93,28 @@ def retrieve(start: DateLike,
     os.makedirs(dirname, exist_ok=True)
 
     # Retrieve country geotiff
-    downloads = []
+    files = []
     for year in range(int(start), int(end)+1):
         logger.info(f'Year {year}')
 
         # Determine the save path
         save_file = f'{prefix}_{year}.nc'
         save_path = (Path(dirname) / save_file).resolve()
-        downloads.append(save_path)
+        files.append(save_path)
 
-        # download the data if doesnt exist
+        # Skip if data already exist
         if skip_existing and save_path.exists():
             logger.info(f'File already downloaded: {save_path}')
-        else:
-            fetch_country_year(year, country_code, save_path)
+            continue
+        
+        # Download the data
+        ds = fetch_country_year(year, country_code, save_path)
+
+        # Save to target path
+        ds.to_netcdf(save_path)
     
     # Return downloaded files
-    return downloads
+    return files
 
 # def retrieve_global(start: DateLike, 
 #              end: DateLike, 

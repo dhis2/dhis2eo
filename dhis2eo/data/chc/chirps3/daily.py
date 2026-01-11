@@ -172,15 +172,16 @@ def retrieve(
         save_path = (Path(dirname) / save_file).resolve()
         files.append(save_path)
 
-        # skip if data already exist
+        # Skip if data already exist
+        # TODO: should not skip if this is the current month
         if skip_existing and save_path.exists():
             logger.info(f'File already downloaded: {save_path}')
             continue
         
-        # download the data
+        # Download the data
         ds = fetch_month(year, month, bbox, var_name, stage, flavor)
 
-        # save to target path
+        # Save to target path
         ds.to_netcdf(save_path)
 
     # return list of all file downloads
