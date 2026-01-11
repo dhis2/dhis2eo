@@ -1,8 +1,10 @@
 import logging
 import os
+import calendar
 from pathlib import Path
+from datetime import date
 
-from ....utils.time import iter_days, ensure_date
+from ....utils.time import iter_days, iter_months, ensure_date
 from ....utils.types import BBox, DateLike
 
 import numpy as np
@@ -74,7 +76,7 @@ def url_for_day(
         f"{dd.year}/chirps-v3.0.prelim.{dd.year}.{dd.month:02d}.{dd.day:02d}.tif"
     )
 
-def fetch_day(day, bbox, var_name, save_path, stage, flavor):
+def fetch_day(day, bbox, var_name, stage, flavor):
     # Get file url based on the day
     url = url_for_day(day, stage=stage, flavor=flavor)
     logger.info(f"Reading {day} -> {url}")
@@ -82,7 +84,7 @@ def fetch_day(day, bbox, var_name, save_path, stage, flavor):
     # Connect to global dataset lazily
     da = rioxarray.open_rasterio(
         url,
-        chunks={'x': 1024, 'y': 1024}  # lazy Dask arrays
+        chunks=None, # disable dask, not needed and actually slows things down
     )
     
     # Read only the bbox window
@@ -111,14 +113,24 @@ def fetch_day(day, bbox, var_name, save_path, stage, flavor):
     ds.attrs["stage"] = stage
     ds.attrs["flavor"] = flavor
 
+    # Return
+    return ds
 
+def fetch_month(year, month, bbox, var_name, stage, flavor):
+    # Loop and fetch data for all days in the month
+    _, days_in_month = calendar.monthrange(year, month)
+    start_day = date(year=year, month=month, day=1)
+    end_day = date(year=year, month=month, day=days_in_month)
+    ds_list = []
+    for day in iter_days(start_day, end_day):
+        day_ds = fetch_day(day, bbox, var_name, stage, flavor)
+        ds_list.append(day_ds)
+    
+    # Merge all day ds into a single month ds
+    ds = xr.concat(ds_list, dim='time')
 
-    logger.info('Saving to disk (seems to be slow)...') # TODO: REMOVE
-
-
-
-    # Save to target path
-    ds.to_netcdf(save_path)
+    # Return
+    return ds
 
 # -----------------------------------------------------------------------------
 # Public API: download and stack daily CHIRPS into an xarray Dataset
@@ -137,37 +149,39 @@ def retrieve(
     var_name: str = "precip",
 ):
     """
-    Fetch CHIRPS v3 daily precipitation for the given date range and bbox.
-    Returns an xarray.Dataset with:
-    - one variable: `var_name` (default: precip)
-    - dimensions: (time, y, x)
+    Retrieves CHIRPS v3 daily precipitation for the given date range and bbox.
+    Saves to disk in monthly files, as specified by dirname and prefix.
+    Returns list of file paths where data was downloaded, e.g. to use with xr.open_mfdataset().
     """
     os.makedirs(dirname, exist_ok=True)
 
-    start_d = ensure_date(start)
-    end_d = ensure_date(end)
-    if end_d < start_d:
-        raise ValueError("end must be on/after start")
+    start_year, start_month = map(int, start.split('-')[:2])
+    end_year, end_month = map(int, end.split('-')[:2])
 
-    logger.info(f"Fetching CHIRPS v3 daily from {start_d} to {end_d} (inclusive)")
+    logger.info(f"Fetching CHIRPS v3 daily from {start_year}-{start_month} to {end_year}-{end_month} (inclusive)")
     logger.info(f"Stage/flavor: {stage}/{flavor}")
     logger.info(f"BBox: {bbox}")
 
-    # Loop over days, read each bbox window, and collect
-    downloads = []
-    for day in iter_days(start_d, end_d):
-        logger.info(f'Day {day.isoformat()}')
+    # Loop over months
+    files = []
+    for year, month in iter_months(start_year, start_month, end_year, end_month):
+        logger.info(f'Month {year}-{month}')
 
         # Determine the save path
-        save_file = f'{prefix}_{day.isoformat()}.nc'
+        save_file = f'{prefix}_{year}-{str(month).zfill(2)}.nc'
         save_path = (Path(dirname) / save_file).resolve()
-        downloads.append(save_path)
+        files.append(save_path)
 
-        # download the data if doesnt exist
+        # skip if data already exist
         if skip_existing and save_path.exists():
             logger.info(f'File already downloaded: {save_path}')
-        else:
-            fetch_day(day, bbox, var_name, save_path, stage, flavor)
+            continue
+        
+        # download the data
+        ds = fetch_month(year, month, bbox, var_name, stage, flavor)
+
+        # save to target path
+        ds.to_netcdf(save_path)
 
     # return list of all file downloads
-    return downloads
+    return files
