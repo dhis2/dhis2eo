@@ -1,9 +1,8 @@
 import logging
 from pathlib import Path
 
-from dhis2eo.org_units import from_file
-
-from dhis2eo.data import worldpop
+import geopandas as gpd
+from dhis2eo.data.worldpop import pop_total
 
 DATA_DIR = Path(__file__).parent.parent / "test_data"
 
@@ -13,10 +12,30 @@ logging.basicConfig(
 )
 
 
-def test_download_population_data():
-    geojson_file = DATA_DIR / "geoBoundaries-MWI-ADM2.geojson"
-    org_units = from_file(geojson_file, org_unit_id_col=None, name_col="shapeName", level=2)
-    iso = "MWI"
-    year = 2030
-    data = worldpop.get_population_data(year, iso)
-    logging.info(f"pop data {data.to_xarray()}")
+def test_download_yearly_population_data():
+    # download args
+    dirname = DATA_DIR / '../test_outputs/worldpop'
+    prefix = 'population_yearly_sierra_leone'
+    # get bbox
+    #geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    #org_units = gpd.read_file(geojson_file)
+    #bbox = org_units.total_bounds
+    country_code = 'SLE'
+    # start/end dates
+    start = "2015"
+    end = "2018"
+    # download
+    paths = pop_total.yearly.retrieve(start, end, country_code=country_code, 
+                                      dirname=dirname, prefix=prefix, skip_existing=False)
+    logging.info(paths)
+    assert len(paths) == 4
+
+    # test opening multifile xarray
+    import xarray as xr
+    ds = xr.open_mfdataset(paths)
+    logging.info(ds)
+
+    # test visualize
+    from earthkit.plots import quickplot
+    fig = quickplot(ds)
+    fig.save(DATA_DIR / '../test_outputs/worldpop/quickplot.png')

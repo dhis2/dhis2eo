@@ -16,8 +16,28 @@ logging.basicConfig(
 
 
 def test_download_daily_chirps3_data():
-    geojson_file = DATA_DIR / "sierra-leone-districts.geojson" #"geoBoundaries-MWI-ADM2.geojson"
+    # download args
+    dirname = DATA_DIR / '../test_outputs/chc'
+    prefix = 'chirps3_daily_sierra_leone'
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
     org_units = gpd.read_file(geojson_file)
-    data = chirps3.daily.get(start="2025-07-01", end="2025-07-03", bbox=org_units.total_bounds)
-    logging.info(data)
-    assert len(data.time) == 3
+    bbox = org_units.total_bounds
+    # start/end dates
+    start = "2025-07-01"
+    end = "2025-07-03"
+    # download
+    paths = chirps3.daily.retrieve(start=start, end=end, bbox=bbox,
+                                   dirname=dirname, prefix=prefix, skip_existing=False)
+    logging.info(paths)
+    assert len(paths) == 3
+
+    # test opening multifile xarray
+    import xarray as xr
+    ds = xr.open_mfdataset(paths)
+    logging.info(ds)
+
+    # test visualize
+    from earthkit.plots import quickplot
+    fig = quickplot(ds)
+    fig.save(DATA_DIR / '../test_outputs/chc/quickplot.png')

@@ -1,6 +1,6 @@
 import logging
-from datetime import date, datetime, timedelta
-from typing import Iterable, List, Tuple, Union
+import os
+from pathlib import Path
 
 from ....utils.time import iter_days, ensure_date
 from ....utils.types import BBox, DateLike
@@ -9,7 +9,7 @@ import numpy as np
 import xarray as xr
 import rioxarray
 
-from ...utils import netcdf_cache, force_logging
+from ...utils import force_logging
 
 # -----------------------------------------------------------------------------
 # Logging setup
@@ -34,7 +34,7 @@ DEFAULT_STAGE = "final"
 DEFAULT_FLAVOR = "rnl"
 
 # -----------------------------------------------------------------------------
-# URL construction (provider-specific logic)
+# Internal logic and helpers
 # -----------------------------------------------------------------------------
 
 def url_for_day(
@@ -74,66 +74,34 @@ def url_for_day(
         f"{dd.year}/chirps-v3.0.prelim.{dd.year}.{dd.month:02d}.{dd.day:02d}.tif"
     )
 
-# -----------------------------------------------------------------------------
-# Public API: download and stack daily CHIRPS into an xarray Dataset
-# -----------------------------------------------------------------------------
-
-#@netcdf_cache()
-def get(
-    start: DateLike,
-    end: DateLike,
-    bbox: BBox,
-    stage: str = DEFAULT_STAGE,
-    flavor: str = DEFAULT_FLAVOR,
-    var_name: str = "precip",
-) -> xr.Dataset:
-    """
-    Fetch CHIRPS v3 daily precipitation for the given date range and bbox.
-    Returns an xarray.Dataset with:
-    - one variable: `var_name` (default: precip)
-    - dimensions: (time, y, x)
-    """
-    start_d = ensure_date(start)
-    end_d = ensure_date(end)
-    if end_d < start_d:
-        raise ValueError("end must be on/after start")
-
-    logger.info(f"Fetching CHIRPS v3 daily from {start_d} to {end_d} (inclusive)")
-    logger.info(f"Stage/flavor: {stage}/{flavor}")
-    logger.info(f"BBox: {bbox}")
-
-    das = []
-    times = []
-
-    # Loop over days, read each bbox window, and collect 
+def fetch_day(day, bbox, var_name, save_path, stage, flavor):
+    # Get file url based on the day
+    url = url_for_day(day, stage=stage, flavor=flavor)
+    logger.info(f"Reading {day} -> {url}")
+    
+    # Connect to global dataset lazily
+    da = rioxarray.open_rasterio(
+        url,
+        chunks={'x': 1024, 'y': 1024}  # lazy Dask arrays
+    )
+    
+    # Read only the bbox window
     xmin, ymin, xmax, ymax = bbox
-    for d in iter_days(start_d, end_d):
-        
-        # Get file url based on the day
-        url = url_for_day(d, stage=stage, flavor=flavor)
-        logger.info(f"Reading {d} -> {url}")
-        
-        # Connect to global dataset lazily
-        da = rioxarray.open_rasterio(
-            url,
-            chunks={'x': 1024, 'y': 1024}  # lazy Dask arrays
-        )
-        
-        # Read only the bbox window
-        da = da.rio.clip_box(minx=xmin, miny=ymin, maxx=xmax, maxy=ymax)
-        
-        # Ensure nodata value is masked and added to metadata
-        nodata = -9999.0 # this should be the chirps3 nodata value
-        da = da.where(da != nodata) # this adds nans where nodata for plotting
-        da.rio.write_nodata(nodata, encoded=True, inplace=True) # should write to metadata for future saving
+    da = da.rio.clip_box(minx=xmin, miny=ymin, maxx=xmax, maxy=ymax)
+    
+    # Ensure nodata value is masked and added to metadata
+    nodata = -9999.0 # this should be the chirps3 nodata value
+    da = da.where(da != nodata) # this adds nans where nodata for plotting
+    da.rio.write_nodata(nodata, encoded=True, inplace=True) # should write to metadata for future saving
 
-        # Collect data array and time extracted from filename
-        das.append(da)
-        times.append(np.datetime64(d))
+    # Convert to dataset
+    ds = da.to_dataset(name=var_name)
 
-    # Stack daily slices along the time dimension
-    stacked = xr.concat(das, dim=xr.IndexVariable("time", times))
-    ds = stacked.to_dataset(name=var_name)
+    # Remove unnecessary band dim
+    ds = ds.squeeze("band", drop=True)
+
+    # Add day constant
+    ds = ds.expand_dims(time=[np.datetime64(day)])
 
     # Light, CF-ish metadata for downstream use
     ds[var_name].attrs.setdefault("long_name", "Precipitation")
@@ -143,4 +111,63 @@ def get(
     ds.attrs["stage"] = stage
     ds.attrs["flavor"] = flavor
 
-    return ds
+
+
+    logger.info('Saving to disk (seems to be slow)...') # TODO: REMOVE
+
+
+
+    # Save to target path
+    ds.to_netcdf(save_path)
+
+# -----------------------------------------------------------------------------
+# Public API: download and stack daily CHIRPS into an xarray Dataset
+# -----------------------------------------------------------------------------
+
+# Public API to retrieve data for bbox between start and end date
+def retrieve(
+    start: DateLike,
+    end: DateLike,
+    bbox: BBox,
+    dirname: str, 
+    prefix: str, 
+    skip_existing=True,
+    stage: str = DEFAULT_STAGE,
+    flavor: str = DEFAULT_FLAVOR,
+    var_name: str = "precip",
+):
+    """
+    Fetch CHIRPS v3 daily precipitation for the given date range and bbox.
+    Returns an xarray.Dataset with:
+    - one variable: `var_name` (default: precip)
+    - dimensions: (time, y, x)
+    """
+    os.makedirs(dirname, exist_ok=True)
+
+    start_d = ensure_date(start)
+    end_d = ensure_date(end)
+    if end_d < start_d:
+        raise ValueError("end must be on/after start")
+
+    logger.info(f"Fetching CHIRPS v3 daily from {start_d} to {end_d} (inclusive)")
+    logger.info(f"Stage/flavor: {stage}/{flavor}")
+    logger.info(f"BBox: {bbox}")
+
+    # Loop over days, read each bbox window, and collect
+    downloads = []
+    for day in iter_days(start_d, end_d):
+        logger.info(f'Day {day.isoformat()}')
+
+        # Determine the save path
+        save_file = f'{prefix}_{day.isoformat()}.nc'
+        save_path = (Path(dirname) / save_file).resolve()
+        downloads.append(save_path)
+
+        # download the data if doesnt exist
+        if skip_existing and save_path.exists():
+            logger.info(f'File already downloaded: {save_path}')
+        else:
+            fetch_day(day, bbox, var_name, save_path, stage, flavor)
+
+    # return list of all file downloads
+    return downloads

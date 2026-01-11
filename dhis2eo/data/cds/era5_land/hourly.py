@@ -1,11 +1,15 @@
 import calendar
 import json
 import logging
+from pathlib import Path
+import os
 
 import earthkit.data
 import xarray as xr
 
-from ...utils import force_logging, netcdf_cache
+from ...utils import force_logging
+from ....utils.time import iter_months
+from ....utils.types import BBox, DateLike
 
 logger = logging.getLogger(__name__)
 force_logging(logger)
@@ -15,15 +19,14 @@ DEFAULT_VARIABLES = [
     "total_precipitation",
 ]
 
+
 # Try to fix CDS cache issue by setting download threads to 1
 config = earthkit.data.config
 config.set("number-of-download-threads", 1)
 
 
-@netcdf_cache()
-def get(year, month, bbox, variables=None, days=None):
-    """Download hourly era5-land data"""
-
+# Internal function to execute a single monthly file download (API only allows one month at a time)
+def fetch_month(save_path, year, month, bbox, variables=None):
     # get default variables
     variables = variables or DEFAULT_VARIABLES
 
@@ -32,7 +35,7 @@ def get(year, month, bbox, variables=None, days=None):
 
     # construct the query parameters
     _, last_day = calendar.monthrange(year, month)
-    days = days or [day for day in range(1, last_day + 1)]
+    days = [day for day in range(1, last_day + 1)]
     days = [str(day).zfill(2) for day in days]
     params = {
         "variable": variables,
@@ -45,13 +48,54 @@ def get(year, month, bbox, variables=None, days=None):
         "download_format": "unarchived",
     }
 
-    # download the data
+    # download the data with earthkit
     logger.info("Downloading data from CDS API...")
     logger.info(f"Request parameters: \n{json.dumps(params)}")
     data = earthkit.data.from_source("cds", "reanalysis-era5-land", **params)
 
     # load lazily from disk using xarray
-    data_array = xr.open_dataset(data.path)
+    ds = xr.open_dataset(data.path)
 
-    # return
-    return data_array
+    # clean unnecessary data
+    ds = ds.drop_vars(['number', 'expver'])
+
+    # save to target path
+    ds.to_netcdf(save_path)
+
+
+# Public API to retrieve data for bbox between start and end date
+def retrieve(
+    start: DateLike,
+    end: DateLike,
+    bbox: BBox,
+    dirname: str,
+    prefix: str,
+    skip_existing=True,
+    variables=None,
+):
+    """Retrieves hourly ERA5-Land data for a given bbox, variables, and start/end dates,
+    saving the file downloads to a target directory and returning the list of filepaths."""
+    os.makedirs(dirname, exist_ok=True)
+
+    start_year, start_month = map(int, start.split('-')[:2])
+    end_year, end_month = map(int, end.split('-')[:2])
+
+    downloads = []
+    for year, month in iter_months(start_year, start_month, end_year, end_month):
+        logger.info(f'Month {year}-{month}')
+
+        # determine the save path
+        save_file = f'{prefix}_{year}-{str(month).zfill(2)}.nc'
+        save_path = (Path(dirname) / save_file).resolve()
+        downloads.append(save_path)
+
+        # download the data if doesnt exist
+        # TODO: also should redownload if this is the current month
+        if skip_existing and save_path.exists():
+            logger.info(f'File already downloaded: {save_path}')
+        else:
+            fetch_month(save_path, year=year, month=month, 
+                            bbox=bbox, variables=variables)
+
+    # return list of all file downloads
+    return downloads

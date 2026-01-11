@@ -1,9 +1,9 @@
 import logging
 from pathlib import Path
 
-from dhis2eo.org_units import from_file
+import geopandas as gpd
 
-from dhis2eo.data import cds
+from dhis2eo.data.cds import era5_land
 
 DATA_DIR = Path(__file__).parent.parent / "test_data"
 
@@ -12,23 +12,28 @@ logging.basicConfig(
     level=logging.INFO,  # or DEBUG for more details
 )
 
-######################
-# TODO: this is just some hacky tests, needs to be made into proper pytest
-# TODO: how to set and use a clean cache dir
 
+def test_download_hourly_era5_data():
+    # download args
+    dirname = DATA_DIR / '../test_outputs/cds'
+    prefix = 'era5_hourly_sierra_leone'
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    org_units = gpd.read_file(geojson_file)
+    bbox = org_units.total_bounds
+    # start/end dates
+    start = '2025-01'
+    end = '2025-12'
+    # download
+    paths = era5_land.hourly.retrieve(start, end, bbox, dirname=dirname, prefix=prefix)
+    logging.info(paths)
+    assert len(paths) == 12
 
-def test_download_daily_era5_data():
-    geojson_file = DATA_DIR / "geoBoundaries-MWI-ADM2.geojson"
-    org_units = from_file(geojson_file, org_unit_id_col=None, name_col="shapeName", level=2)
-    data = cds.download_daily_era5_data(2016, 1, org_units)
+    # test opening multifile xarray
+    import xarray as xr
+    ds = xr.open_mfdataset(paths)
+    logging.info(ds)
 
-
-def test_get_daily_era5_data():
-    geojson_file = DATA_DIR / "geoBoundaries-MWI-ADM2.geojson"
-    org_units = from_file(geojson_file, org_unit_id_col=None, name_col="shapeName", level=2)
-    # get first time
-    data1 = cds.get_daily_era5_data(2016, 1, org_units)  # , cache_folder='...')
-    # get again
-    data2 = cds.get_daily_era5_data(2016, 1, org_units)  # , cache_folder='...')
-    # test that both are read from the same cache file
-    assert data1.path == data2.path
+    # test aggregating temperature to daily
+    daily_temp = ds['t2m'].resample(valid_time='1D').mean()
+    logging.info(daily_temp)
