@@ -107,16 +107,17 @@ def download(start: DateLike,
         save_path = (Path(dirname) / save_file).resolve()
         files.append(save_path)
 
-        # Skip if data already exist
+        # Download or use existing file
         if skip_existing and save_path.exists():
+            # File already exist, load from file instead
             logger.info(f'File already downloaded: {save_path}')
-            continue
         
-        # Download the data
-        ds = fetch_country_year(year, country_code, save_path)
+        else:
+            # Download the data
+            ds = fetch_country_year(year, country_code, save_path)
 
-        # Save to target path
-        ds.to_netcdf(save_path)
+            # Save to target path
+            ds.to_netcdf(save_path)
     
     # Return downloaded files
     return files
