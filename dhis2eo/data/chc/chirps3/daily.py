@@ -2,9 +2,9 @@ import logging
 import os
 import calendar
 from pathlib import Path
-from datetime import date
+from datetime import date, timedelta
 
-from ....utils.time import iter_days, iter_months, ensure_date
+from ....utils.time import iter_days, iter_months, ensure_date, months_ago
 from ....utils.types import BBox, DateLike
 
 import numpy as np
@@ -165,27 +165,51 @@ def download(
     logger.info(f"Stage/flavor: {stage}/{flavor}")
     logger.info(f"BBox: {bbox}")
 
+    # Determine last date for which we can expect CHIRPS v3 to be complete
+    # CHIRPS v3 seems to be released in complete months after the 20th of the following month
+    # Meaning only after the 20th of a new month, can we expect that the previous month has been released
+    current_date = date.today()
+    last_month = months_ago(current_date, 1)
+    month_before_last = months_ago(current_date, 2)
+    last_updated_month = last_month if current_date.day > 20 else month_before_last
+
+    # The last update date for 'prelim' stage data has different more complex rules
+    # But in practice it seems it follows the same rule after the 20th
+    # TODO: We may have to revisit this and implement the correct rule for 'prelim' data
+    # For now, adding a warning for prelim data
+    if stage == 'prelim':
+        logger.warning(
+            "CHIRPS 'prelim' data for the last updated month may not follow the usual update rules. "
+            "Current logic assumes updates follow the same rule after the 20th of the month. "
+        )
+
     # Loop over months
     files = []
     for year, month in iter_months(start_year, start_month, end_year, end_month):
         logger.info(f'Month {year}-{month}')
+
+        # Skip if month is not expected to be published
+        if (year,month) > (last_updated_month.year, last_updated_month.month):
+            logger.warning(f'Skipping downloads for months that have not been published yet (after 20th of the following month).')
+            logger.warning(f'Last available month in CHIRPS v3: {last_updated_month.isoformat()[:7]}')
+            continue
 
         # Determine the save path
         save_file = f'{prefix}_{year}-{str(month).zfill(2)}.nc'
         save_path = (Path(dirname) / save_file).resolve()
         files.append(save_path)
 
-        # Skip if data already exist
-        # TODO: should not skip if this is the current month
+        # Download or use existing file
         if skip_existing and save_path.exists():
+            # File already exist, load from file instead
             logger.info(f'File already downloaded: {save_path}')
-            continue
         
-        # Download the data
-        ds = fetch_month(year, month, bbox, var_name, stage, flavor)
+        else:
+            # Download the data
+            ds = fetch_month(year, month, bbox, var_name, stage, flavor)
 
-        # Save to target path
-        ds.to_netcdf(save_path)
+            # Save to target path
+            ds.to_netcdf(save_path)
 
     # return list of all file downloads
     return files

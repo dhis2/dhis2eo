@@ -3,6 +3,7 @@ import json
 import logging
 from pathlib import Path
 import os
+from datetime import date, timedelta
 
 import earthkit.data
 import xarray as xr
@@ -83,27 +84,40 @@ def download(
     start_year, start_month = map(int, start.split('-')[:2])
     end_year, end_month = map(int, end.split('-')[:2])
 
+    # Determine last date for which we can expect ERA5-Land to be complete
+    # ERA5-Land seems to have roughly 6-7 days of lag
+    # Meaning only on the 7th of a new month, can we expect that the previous month contains all days
+    current_date = date.today()
+    last_updated_date = current_date - timedelta(days=7)
+
     files = []
     for year, month in iter_months(start_year, start_month, end_year, end_month):
         logger.info(f'Month {year}-{month}')
 
-        # determine the save path
+        # Skip if month is expected to be incomplete
+        if (year,month) >= (last_updated_date.year, last_updated_date.month):
+            logger.warning(
+                f'Skipping downloads for months that are expected to be incomplete (~7 days of lag).'
+                f'Latest available date expected in ERA5-Land: {last_updated_date.isoformat()}'
+            )
+            continue
+
+        # Determine the save path
         save_file = f'{prefix}_{year}-{str(month).zfill(2)}.nc'
         save_path = (Path(dirname) / save_file).resolve()
         files.append(save_path)
 
-        # Skip if already exist
-        # TODO: should not skip if this is the current month
+        # Download or use existing file
         if skip_existing and save_path.exists():
+            # File already exist, load from file instead
             logger.info(f'File already downloaded: {save_path}')
-            continue
         
-        # Download the data
-        ds = fetch_month(save_path, year=year, month=month, 
-                            bbox=bbox, variables=variables)
-            
-        # Save to target path
-        ds.to_netcdf(save_path)
+        else:
+            # Download the data
+            ds = fetch_month(save_path, year=year, month=month, bbox=bbox, variables=variables)
+                
+            # Save to target path
+            ds.to_netcdf(save_path)
 
     # return list of all file downloads
     return files
