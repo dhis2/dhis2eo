@@ -64,7 +64,7 @@ def fetch_month(save_path, year, month, bbox, variables=None):
 
 
 # Public API to retrieve data for bbox between start and end date
-def retrieve(
+def download(
     start: DateLike,
     end: DateLike,
     bbox: BBox,
@@ -73,8 +73,11 @@ def retrieve(
     skip_existing=True,
     variables=None,
 ):
-    """Retrieves hourly ERA5-Land data for a given bbox, variables, and start/end dates,
-    saving the file downloads to a target directory and returning the list of filepaths."""
+    """
+    Retrieves ERA5-Land hourly climate data for a given bbox, variables, and start/end dates.
+    Saves to disk in monthly files, as specified by dirname and prefix.
+    Returns list of file paths where data was downloaded, e.g. to use with xr.open_mfdataset().
+    """
     os.makedirs(dirname, exist_ok=True)
 
     start_year, start_month = map(int, start.split('-')[:2])

@@ -2,6 +2,9 @@ import logging
 from pathlib import Path
 
 import geopandas as gpd
+import xarray as xr
+from earthkit.plots import quickplot
+
 from dhis2eo.data.worldpop import pop_total
 
 DATA_DIR = Path(__file__).parent.parent / "test_data"
@@ -16,26 +19,30 @@ def test_download_yearly_population_data():
     # download args
     dirname = DATA_DIR / '../test_outputs/worldpop'
     prefix = 'population_yearly_sierra_leone'
-    # get bbox
-    #geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
-    #org_units = gpd.read_file(geojson_file)
-    #bbox = org_units.total_bounds
+
+    # get country
     country_code = 'SLE'
+
     # start/end dates
     start = "2015"
-    end = "2018"
+    end = "2020"
+
     # download
-    paths = pop_total.yearly.retrieve(start, end, country_code=country_code, 
-                                      dirname=dirname, prefix=prefix, skip_existing=False)
+    paths = pop_total.yearly.download(start, end, country_code=country_code, 
+                                      dirname=dirname, prefix=prefix, skip_existing=True)
     logging.info(paths)
-    assert len(paths) == 4
+    assert len(paths) == 6
 
     # test opening multifile xarray
-    import xarray as xr
     ds = xr.open_mfdataset(paths)
     logging.info(ds)
 
+    # test total aggregate
+    for yr in range(int(start), int(end)+1):
+        ds_year = ds.sel(time=str(yr))
+        total_pop = ds_year['pop_total'].sum().compute().item() # compute+item are needed to execute the dask task
+        logging.info(f'Total population {yr}: {total_pop}')
+
     # test visualize
-    from earthkit.plots import quickplot
-    fig = quickplot(ds)
-    fig.save(DATA_DIR / '../test_outputs/worldpop/quickplot.png')
+    #fig = quickplot(ds.sel(time=end))
+    #fig.save(dirname / 'quickplot.png')

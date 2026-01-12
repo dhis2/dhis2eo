@@ -83,13 +83,18 @@ def fetch_country_year(year, country_code, save_path):
 
 # Public api
 
-def retrieve(start: DateLike, 
+def download(start: DateLike, 
              end: DateLike, 
              country_code: str, 
              dirname: str,
              prefix: str,
              skip_existing=True
 ):
+    """
+    Retrieves WorldPop yearly population count data for a given bbox, variables, and start/end dates.
+    Saves to disk in yearly files, as specified by dirname and prefix.
+    Returns list of file paths where data was downloaded, e.g. to use with xr.open_mfdataset().
+    """
     os.makedirs(dirname, exist_ok=True)
 
     # Retrieve country geotiff

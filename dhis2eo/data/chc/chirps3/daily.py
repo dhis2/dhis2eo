@@ -140,7 +140,7 @@ def fetch_month(year, month, bbox, var_name, stage, flavor):
 # -----------------------------------------------------------------------------
 
 # Public API to retrieve data for bbox between start and end date
-def retrieve(
+def download(
     start: DateLike,
     end: DateLike,
     bbox: BBox,
