@@ -27,7 +27,7 @@ config.set("number-of-download-threads", 1)
 
 
 # Internal function to execute a single monthly file download (API only allows one month at a time)
-def fetch_month(save_path, year, month, bbox, variables=None):
+def fetch_month(year, month, bbox, variables=None):
     # get default variables
     variables = variables or DEFAULT_VARIABLES
 
@@ -114,7 +114,7 @@ def download(
         
         else:
             # Download the data
-            ds = fetch_month(save_path, year=year, month=month, bbox=bbox, variables=variables)
+            ds = fetch_month(year=year, month=month, bbox=bbox, variables=variables)
                 
             # Save to target path
             ds.to_netcdf(save_path)

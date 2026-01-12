@@ -76,3 +76,27 @@ def test_download_hourly_era5_skip_incomplete_month():
     # if it's earlier than the 7th day, then the previous month will also be skipped
     # this means either 0 or 1 months should be downloaded and returned
     assert len(paths) < 2
+
+def test_download_monthly_era5_data():
+    # download args
+    dirname = DATA_DIR / '../test_outputs/cds'
+    prefix = 'era5_monthly_sierra_leone'
+
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    org_units = gpd.read_file(geojson_file)
+    bbox = org_units.total_bounds
+
+    # start/end dates
+    start = '1990'
+    end = '2025'
+
+    # download
+    paths = era5_land.monthly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
+                                      skip_existing=True)
+    logging.info(paths)
+    assert len(paths) == 1
+
+    # test opening the data
+    ds = xr.open_dataset(paths[0])
+    logging.info(ds)
