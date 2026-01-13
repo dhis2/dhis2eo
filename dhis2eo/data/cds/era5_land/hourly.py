@@ -15,11 +15,6 @@ from ....utils.types import BBox, DateLike
 logger = logging.getLogger(__name__)
 force_logging(logger)
 
-DEFAULT_VARIABLES = [
-    "2m_temperature",
-    "total_precipitation",
-]
-
 
 # Try to fix CDS cache issue by setting download threads to 1
 config = earthkit.data.config
@@ -27,10 +22,7 @@ config.set("number-of-download-threads", 1)
 
 
 # Internal function to execute a single monthly file download (API only allows one month at a time)
-def fetch_month(year, month, bbox, variables=None):
-    # get default variables
-    variables = variables or DEFAULT_VARIABLES
-
+def fetch_month(year, month, bbox, variables):
     # extract the coordinates from input bounding box
     xmin, ymin, xmax, ymax = map(float, bbox)
 
@@ -71,8 +63,8 @@ def download(
     bbox: BBox,
     dirname: str,
     prefix: str,
+    variables: list[str],
     skip_existing=True,
-    variables=None,
 ):
     """
     Retrieves ERA5-Land hourly climate data for a given bbox, variables, and start/end dates.

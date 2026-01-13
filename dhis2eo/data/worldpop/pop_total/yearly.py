@@ -19,17 +19,27 @@ force_logging(logger)
 
 # Internal logic and helpers
 
-def url_country_for_year(year, country_code):
+def url_country_for_year(year, country_code, version):
     # generate url to download country geotiff
-    filename = f"{country_code.lower()}_pop_{year}_CN_100m_R2025A_v1.tif"
-    url = f"https://data.worldpop.org/GIS/Population/Global_2015_2030/R2025A/{year}/{country_code.upper()}/v1/100m/constrained/{filename}"
+    if version == 'global1':
+        # the older version dataset covers the period 2000 to 2020
+        # of the multiple possible variants, this uses the UN adjusted unconstrained dataset
+        # as this seems most similar in methodology to the global2 version
+        # see https://hub.worldpop.org/Global1_2000-2020
+        filename = f"{country_code.lower()}_ppp_{year}_UNadj.tif"
+        url = f"https://data.worldpop.org/GIS/Population/Global_2000_2020/{year}/{country_code.upper()}/{filename}"
+    elif version == 'global2':
+        # the newest version dataset covers the period 2015 to 2030
+        # see https://hub.worldpop.org/project/categories?id=3
+        filename = f"{country_code.lower()}_pop_{year}_CN_100m_R2025A_v1.tif"
+        url = f"https://data.worldpop.org/GIS/Population/Global_2015_2030/R2025A/{year}/{country_code.upper()}/v1/100m/constrained/{filename}"
     return url
 
-def fetch_country_year(year, country_code, save_path):
+def fetch_country_year(year, country_code, version):
     var_name = 'pop_total'
 
     # get country file url based on the year
-    url = url_country_for_year(year, country_code)
+    url = url_country_for_year(year, country_code, version)
     logger.info(f"Reading {year} -> {url}")
 
     # Download country file data
@@ -88,6 +98,7 @@ def download(start: DateLike,
              country_code: str, 
              dirname: str,
              prefix: str,
+             version: str = 'global2',
              skip_existing=True
 ):
     """
@@ -114,7 +125,7 @@ def download(start: DateLike,
         
         else:
             # Download the data
-            ds = fetch_country_year(year, country_code, save_path)
+            ds = fetch_country_year(year, country_code, version)
 
             # Save to target path
             ds.to_netcdf(save_path)
