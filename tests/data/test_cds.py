@@ -34,7 +34,7 @@ def test_download_hourly_era5_data():
     # download
     variables = ['2m_temperature', 'total_precipitation']
     paths = era5_land.hourly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
-                                      variables=variables, skip_existing=True)
+                                      variables=variables)
     logging.info(paths)
     assert len(paths) == 3
 
@@ -71,7 +71,7 @@ def test_download_hourly_era5_skip_incomplete_month():
     # download
     variables = ['2m_temperature', 'total_precipitation']
     paths = era5_land.hourly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
-                                      variables=variables, skip_existing=True)
+                                      variables=variables)
     logging.info(paths)
 
     # at least the current month should not be downloaded
@@ -96,7 +96,7 @@ def test_download_monthly_era5_data():
     # download
     variables = ['2m_temperature', 'total_precipitation']
     paths = era5_land.monthly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
-                                      variables=variables, skip_existing=True)
+                                      variables=variables)
     logging.info(paths)
     assert len(paths) == 1
 

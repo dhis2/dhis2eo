@@ -58,7 +58,7 @@ def download(
     dirname: str,
     prefix: str,
     variables: list[str],
-    skip_existing=True,
+    overwrite: bool = False,
 ):
     """
     Retrieves ERA5-Land monthly climate data for a given bbox, variables, and start/end dates.
@@ -80,7 +80,7 @@ def download(
     files.append(save_path)
 
     # Download or use existing file
-    if skip_existing and save_path.exists():
+    if overwrite is False and save_path.exists():
         # File already exist, load from file instead
         logger.info(f'File already downloaded: {save_path}')
     

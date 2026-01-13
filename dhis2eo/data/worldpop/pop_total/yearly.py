@@ -99,7 +99,7 @@ def download(start: DateLike,
              dirname: str,
              prefix: str,
              version: str = 'global2',
-             skip_existing=True
+             overwrite: bool = False,
 ):
     """
     Retrieves WorldPop yearly population count data for a given bbox, variables, and start/end dates.
@@ -119,7 +119,7 @@ def download(start: DateLike,
         files.append(save_path)
 
         # Download or use existing file
-        if skip_existing and save_path.exists():
+        if overwrite is False and save_path.exists():
             # File already exist, load from file instead
             logger.info(f'File already downloaded: {save_path}')
         

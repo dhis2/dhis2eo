@@ -29,7 +29,7 @@ def test_download_yearly_population_data():
 
     # download
     paths = pop_total.yearly.download(start, end, country_code=country_code, 
-                                      dirname=dirname, prefix=prefix, skip_existing=True)
+                                      dirname=dirname, prefix=prefix)
     logging.info(paths)
     assert len(paths) == 6
 

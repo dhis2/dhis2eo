@@ -146,10 +146,10 @@ def download(
     bbox: BBox,
     dirname: str, 
     prefix: str, 
-    skip_existing=True,
     stage: str = DEFAULT_STAGE,
     flavor: str = DEFAULT_FLAVOR,
     var_name: str = "precip",
+    overwrite: bool = False,
 ):
     """
     Retrieves CHIRPS v3 daily precipitation for the given date range and bbox.
@@ -200,7 +200,7 @@ def download(
         files.append(save_path)
 
         # Download or use existing file
-        if skip_existing and save_path.exists():
+        if overwrite is False and save_path.exists():
             # File already exist, load from file instead
             logger.info(f'File already downloaded: {save_path}')
         
