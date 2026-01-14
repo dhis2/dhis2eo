@@ -1,9 +1,27 @@
 import re
+from datetime import datetime, date, timedelta
+from typing import Union, Iterable
 
 YEAR = "YEAR"
 MONTH = "MONTH"
 WEEK = "WEEK"
 DAY = "DAY"
+
+
+def ensure_date(d: Union[str, date, datetime]) -> date:
+    """
+    Normalize input into a `date` object.
+    Accepts:
+    - YYYY-MM-DD strings
+    - datetime.datetime
+    - datetime.date
+    This keeps the public API flexible while ensuring internal consistency.
+    """
+    if isinstance(d, datetime):
+        return d.date()
+    if isinstance(d, date):
+        return d
+    return datetime.strptime(str(d), "%Y-%m-%d").date()
 
 
 def detect_period_type(s):
@@ -41,7 +59,22 @@ def dhis2_period(year=None, month=None, day=None, week=None):
     raise ValueError("Not enough information to form a DHIS2 period code.")
 
 
+def iter_days(start: date, end: date) -> Iterable[date]:
+    """
+    Yield all dates from `start` to `end`, inclusive.
+    """
+    cur = start
+    while cur <= end:
+        yield cur
+        cur = cur + timedelta(days=1)
+
+
 def iter_months(start_year, start_month, end_year, end_month):
+    """
+    Yield all year-month tuples from `start` to `end`, inclusive.
+    """
+    # TODO: switch to start and end params instead
+    # ... 
     for year in range(start_year, end_year + 1):
         for month in range(1, 12 + 1):
             # skip months before or after our defined time range
@@ -52,3 +85,4 @@ def iter_months(start_year, start_month, end_year, end_month):
 
             # yield iter
             yield year, month
+
