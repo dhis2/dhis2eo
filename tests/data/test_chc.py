@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 from datetime import date, timedelta
+import pytest
 
 import geopandas as gpd
 import xarray as xr
@@ -19,6 +20,7 @@ logging.basicConfig(
 ######################
 
 
+@pytest.mark.integration
 def test_download_daily_chirps3_data():
     # download args
     dirname = DATA_DIR / '../test_outputs/chc'
@@ -53,6 +55,7 @@ def test_download_daily_chirps3_data():
     #fig.save(dirname / 'quickplot.png')
 
 
+@pytest.mark.integration
 def test_download_daily_chirps3_skip_incomplete_month():
     # download args
     dirname = DATA_DIR / '../test_outputs/chc'

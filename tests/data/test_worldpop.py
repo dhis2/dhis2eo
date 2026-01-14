@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+import pytest
 
 import geopandas as gpd
 import xarray as xr
@@ -14,6 +15,7 @@ logging.basicConfig(
 )
 
 
+@pytest.mark.integration
 def test_download_yearly_population_data():
     # download args
     dirname = DATA_DIR / '../test_outputs/worldpop'
@@ -48,6 +50,7 @@ def test_download_yearly_population_data():
     #fig.save(dirname / 'quickplot.png')
 
 
+@pytest.mark.integration
 def test_download_yearly_population_versions():
     # NOTE: in addition to testing the ability to download both global1 and global2 versions
     # ...this also tests that we can stitch them together to get a single timeseries across the 

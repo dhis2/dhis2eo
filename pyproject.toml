@@ -28,6 +28,12 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: marks tests as integration tests (skipped by default)"
+]
+addopts = [
+    "-m not integration"      # Skip tests marked as 'integration' by default
+]
 
 [tool.ruff]
 line-length = 120

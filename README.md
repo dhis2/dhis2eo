@@ -70,6 +70,12 @@ Tests are written with pytest and can be run directly:
 pytest -v
 ```
 
+To avoid unnecessary computation and server load, tests for the `data` integrations are marked with `@pytest.mark.integration` and are skipped by default. To run them manually: 
+
+```bash
+pytest -v -m integration
+```
+
 ## Code formatting
 
 Code style and linting are handled by ruff and can be run directly:
