@@ -76,7 +76,7 @@ def url_for_day(
         f"{dd.year}/chirps-v3.0.prelim.{dd.year}.{dd.month:02d}.{dd.day:02d}.tif"
     )
 
-def fetch_day(day, bbox, var_name, stage, flavor):
+def fetch_day(day, bbox, var_name, stage, flavor):  
     # Get file url based on the day
     url = url_for_day(day, stage=stage, flavor=flavor)
     logger.debug(f"Reading {day} -> {url}")
@@ -117,6 +117,13 @@ def fetch_day(day, bbox, var_name, stage, flavor):
     return ds
 
 def fetch_month(year, month, bbox, var_name, stage, flavor):
+    # Here we group the daily CHIRPS GeoTIFF files so that they can be saved as monthly files. 
+    # Saving the daily files individually would be at least a little bit slower, 
+    # ...and increases the file size significantly (at least 2x). 
+    # This also would likely slow down reading long periods of time, as opening say 3 years of 
+    # daily data would mean xarray opening 365*3=1095 files. 
+    # Downloading as monthly files is also similar to how we handle hourly ERA5 data.
+
     # Determine start and end date for the month
     _, days_in_month = calendar.monthrange(year, month)
     start_day = date(year=year, month=month, day=1)

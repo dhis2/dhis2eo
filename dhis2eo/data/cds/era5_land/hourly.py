@@ -87,6 +87,12 @@ def download(
         logger.info(f'Month {year}-{month}')
 
         # Skip if month is expected to be incomplete
+        # Technically speaking CDS allows us to download monthly files with only some of the days.
+        # However, this introduces the issue of caching partial monthly downloads, where we would have to check if
+        # ...each file contains all days.
+        # As a simple solution, we instead check if the month is expected to be complete (based on the reported publishing lag of ERA5-Land)
+        # ...and issue a warning that we don't download incomplete months. 
+        # I think this should be fine in the DHIS2 context where reporting tends to happen for each month.
         if (year,month) >= (last_updated_date.year, last_updated_date.month):
             logger.warning(
                 f'Skipping downloads for months that are expected to be incomplete (~7 days of lag).'
