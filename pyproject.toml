@@ -20,7 +20,7 @@ dependencies = [
 where = ["."]
 include = ["dhis2eo*"]
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "ruff>=0.14.10",

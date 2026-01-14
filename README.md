@@ -47,14 +47,16 @@ These principles help keep the project approachable and durable over time.
 
 ## Installation
 
+Until we make the first Github release, just install from the main Github repo:
+
 ```bash
 pip install git+https://github.com/dhis2/dhis2eo
 ```
 
-For contributors:
+For contributors (to get linting and testing tools):
 
 ```bash
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 ## Running tests
