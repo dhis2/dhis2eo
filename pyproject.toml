@@ -20,7 +20,7 @@ dependencies = [
 where = ["."]
 include = ["dhis2eo*"]
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "ruff>=0.14.10",
@@ -28,6 +28,12 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: marks tests as integration tests (skipped by default)"
+]
+addopts = [
+    "-m not integration"      # Skip tests marked as 'integration' by default
+]
 
 [tool.ruff]
 line-length = 120
@@ -35,3 +41,6 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"] # ignore unused imports in init files

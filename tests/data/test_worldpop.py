@@ -1,9 +1,9 @@
 import logging
 from pathlib import Path
+import pytest
 
 import geopandas as gpd
 import xarray as xr
-from earthkit.plots import quickplot
 
 from dhis2eo.data.worldpop import pop_total
 
@@ -15,6 +15,7 @@ logging.basicConfig(
 )
 
 
+@pytest.mark.integration
 def test_download_yearly_population_data():
     # download args
     dirname = DATA_DIR / '../test_outputs/worldpop'
@@ -44,10 +45,12 @@ def test_download_yearly_population_data():
         logging.info(f'Total population {yr}: {total_pop}')
 
     # test visualize
+    #from earthkit.plots import quickplot
     #fig = quickplot(ds.sel(time=end))
     #fig.save(dirname / 'quickplot.png')
 
 
+@pytest.mark.integration
 def test_download_yearly_population_versions():
     # NOTE: in addition to testing the ability to download both global1 and global2 versions
     # ...this also tests that we can stitch them together to get a single timeseries across the 
