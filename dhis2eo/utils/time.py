@@ -86,3 +86,23 @@ def iter_months(start_year, start_month, end_year, end_month):
             # yield iter
             yield year, month
 
+
+def months_ago(d: date, n: int = 1) -> date:
+    """
+    Return a date representing the first day of the month `n` months before the given date.
+
+    Handles year boundaries automatically.
+
+    Args:
+        d: Reference date.
+        n: Number of months to go back (default 1).
+
+    Returns:
+        A `date` object corresponding to the first day of the target month.
+    """
+    year, month = d.year, d.month - n
+    while month <= 0:
+        month += 12
+        year -= 1
+    return date(year, month, 1)
+

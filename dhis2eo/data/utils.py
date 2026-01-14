@@ -14,9 +14,10 @@ def force_logging(logger):
     # Since data modules are so download centric, force all info logs to be printed
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.INFO)
-    handler.setFormatter(logging.Formatter("%(name)s - %(levelname)s - %(message)s"))
+    handler.setFormatter(logging.Formatter("%(levelname)s - %(asctime)s - %(name)s - %(message)s"))
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
+    #logger.propagate = False # preserves this logging format so that the caller doesn't override with its own logging format
 
 
 force_logging(logger)
