@@ -4,7 +4,6 @@ from datetime import date, timedelta
 
 import geopandas as gpd
 import xarray as xr
-from earthkit.plots import quickplot
 
 from dhis2eo.data.chc import chirps3
 from dhis2eo.utils.time import months_ago
@@ -49,6 +48,7 @@ def test_download_daily_chirps3_data():
     logging.info(monthly_temp)
 
     # test visualize
+    #from earthkit.plots import quickplot
     #fig = quickplot(ds.sel(time=start))
     #fig.save(dirname / 'quickplot.png')
 

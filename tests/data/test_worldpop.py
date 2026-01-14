@@ -3,7 +3,6 @@ from pathlib import Path
 
 import geopandas as gpd
 import xarray as xr
-from earthkit.plots import quickplot
 
 from dhis2eo.data.worldpop import pop_total
 
@@ -44,6 +43,7 @@ def test_download_yearly_population_data():
         logging.info(f'Total population {yr}: {total_pop}')
 
     # test visualize
+    #from earthkit.plots import quickplot
     #fig = quickplot(ds.sel(time=end))
     #fig.save(dirname / 'quickplot.png')
 

@@ -4,7 +4,6 @@ from datetime import date, timedelta
 
 import geopandas as gpd
 import xarray as xr
-from earthkit.plots import quickplot
 
 from dhis2eo.data.cds import era5_land
 from dhis2eo.utils.time import months_ago
@@ -47,6 +46,7 @@ def test_download_hourly_era5_data():
     logging.info(daily_temp)
 
     # test visualize
+    #from earthkit.plots import quickplot
     #fig = quickplot(ds.sel(valid_time=start))
     #fig.save(dirname / 'quickplot.png')
 
