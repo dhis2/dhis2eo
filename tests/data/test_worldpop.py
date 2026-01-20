@@ -3,6 +3,9 @@ from pathlib import Path
 
 import geopandas as gpd
 import xarray as xr
+
+import pytest
+pytest.importorskip("earthkit.plots")
 from earthkit.plots import quickplot
 
 from dhis2eo.data.worldpop import pop_total
