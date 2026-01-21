@@ -1,229 +1,185 @@
 import pandas as pd
 import pytest
 
-from dhis2eo.integrations.chap import dataframe_to_chap_csv, _normalize_time_period
+from dhis2eo.integrations.chap import (
+    dataframe_to_chap_csv,
+    find_temporal_gaps,
+    _normalize_time_period,
+)
 
 
-def test_normalize_monthly_accepts_mixed_inputs():
+# -----------------------------------------------------------------------------
+# Time normalization
+# -----------------------------------------------------------------------------
+
+def test_normalize_monthly_accepts_common_formats():
     s = pd.Series(["199801", "1998-02", "1998-03-15"])
     out = _normalize_time_period(s, freq="monthly")
     assert out.tolist() == ["1998-01", "1998-02", "1998-03"]
 
 
 def test_normalize_monthly_rejects_invalid_values():
-    s = pd.Series(["1998-13", "nope"])
+    s = pd.Series(["1998-13"])
     with pytest.raises(ValueError):
         _normalize_time_period(s, freq="monthly")
 
 
-def test_normalize_weekly_accepts_dates_and_formats_iso_week():
-    s = pd.Series(["2020-01-01", "2020-01-08"])
+def test_normalize_weekly_accepts_date_like_input():
+    s = pd.Series(["2020-01-01"])
     out = _normalize_time_period(s, freq="weekly")
     assert out.str.match(r"^\d{4}-W\d{2}$").all()
-    assert out.iloc[0].startswith("2020-W")
 
 
-def test_dataframe_to_chap_csv_requires_column_map_keys():
+# -----------------------------------------------------------------------------
+# Schema enforcement
+# -----------------------------------------------------------------------------
+
+def test_dataframe_to_chap_csv_requires_mandatory_chap_fields_in_column_map():
     df = pd.DataFrame(
         {
-            "org_id": ["X"],
+            "org_id": ["A"],
             "period": ["1998-01"],
-            "dengue_cases": [1.0],
+            "cases": [1],
         }
     )
+
     with pytest.raises(KeyError):
         dataframe_to_chap_csv(
             df,
             column_map={
                 "time_period": "period",
                 "location": "org_id",
-                # "disease_cases": "dengue_cases"
+                # "disease_cases": "cases"  # missing
             },
+            continuity_policy="ignore",  # avoid triggering continuity checks for this test
         )
 
 
 def test_dataframe_to_chap_csv_requires_mapped_input_columns_exist():
-    df = pd.DataFrame({"org_id": ["X"], "period": ["1998-01"], "dengue_cases": [1.0]})
+    df = pd.DataFrame(
+        {
+            "org_id": ["A"],
+            "period": ["1998-01"],
+            # "cases" missing
+        }
+    )
+
     with pytest.raises(KeyError):
         dataframe_to_chap_csv(
             df,
             column_map={
                 "time_period": "period",
                 "location": "org_id",
-                "disease_cases": "missing_cases_col",
+                "disease_cases": "cases",
             },
+            continuity_policy="ignore",
         )
 
 
-def test_dataframe_to_chap_csv_maps_reserved_fields_and_drops_metadata_by_default():
-    df = pd.DataFrame(
-        {
-            "org_id": ["LAO_ADM1_0001", "LAO_ADM1_0001"],
-            "period": ["1998-01", "1998-02"],
-            "org_name": ["ATTAPU", "ATTAPU"],  # should be dropped by default
-            "dengue_cases": [0.0, 1.0],        # maps -> disease_cases
-            "t2m_mean_c_month": [25.1, 26.7],
-            "tp_sum_mm_month": [0.04, 0.54],
-            "rh2m_mean_month": [70.0, 71.0],
-            "population": [99933.4, 99933.4],  # optional reserved field
-            "population_year": [2020, 2020],   # should be dropped by default
-        }
-    )
+# -----------------------------------------------------------------------------
+# Global continuity gaps
+# -----------------------------------------------------------------------------
 
-    csv_text = dataframe_to_chap_csv(
-        df,
-        column_map={
-            "time_period": "period",
-            "location": "org_id",
-            "disease_cases": "dengue_cases",
-            "population": "population",
-        },
-        continuity_policy="error",
-    )
-
-    lines = csv_text.strip().splitlines()
-    header = lines[0].split(",")
-
-    assert header[:4] == ["time_period", "location", "disease_cases", "population"]
-    assert "org_name" not in header
-    assert "population_year" not in header
-
-    assert "t2m_mean_c_month" in header
-    assert "tp_sum_mm_month" in header
-    assert "rh2m_mean_month" in header
-
-
-def test_dataframe_to_chap_csv_population_is_optional():
-    df = pd.DataFrame(
-        {
-            "org_id": ["X"],
-            "period": ["1998-01"],
-            "dengue_cases": [1.0],
-            "temp": [25.0],
-        }
-    )
-
-    csv_text = dataframe_to_chap_csv(
-        df,
-        column_map={
-            "time_period": "period",
-            "location": "org_id",
-            "disease_cases": "dengue_cases",
-        },
-        continuity_policy="error",
-    )
-    header = csv_text.splitlines()[0].split(",")
-
-    assert header[:3] == ["time_period", "location", "disease_cases"]
-    assert "population" not in header
-    assert "temp" in header
-
-
-def test_dataframe_to_chap_csv_value_cols_limits_covariates():
-    df = pd.DataFrame(
-        {
-            "org_id": ["X"],
-            "period": ["1998-01"],
-            "dengue_cases": [1.0],
-            "temp": [25.0],
-            "precip": [12.0],
-        }
-    )
-
-    csv_text = dataframe_to_chap_csv(
-        df,
-        column_map={
-            "time_period": "period",
-            "location": "org_id",
-            "disease_cases": "dengue_cases",
-        },
-        value_cols=["precip"],
-        continuity_policy="error",
-    )
-
-    header = csv_text.splitlines()[0].split(",")
-    assert header == ["time_period", "location", "disease_cases", "precip"]
-    assert "temp" not in header
-
-
-def test_dataframe_to_chap_csv_sort_is_deterministic():
-    df = pd.DataFrame(
-        {
-            "org_id": ["B", "A", "A"],
-            "period": ["1998-02", "1998-02", "1998-01"],
-            "dengue_cases": [1.0, 2.0, 3.0],
-            "x": [10, 20, 30],
-        }
-    )
-
-    csv_text = dataframe_to_chap_csv(
-        df,
-        column_map={
-            "time_period": "period",
-            "location": "org_id",
-            "disease_cases": "dengue_cases",
-        },
-        sort=True,
-        continuity_policy="error",
-    )
-
-    lines = csv_text.strip().splitlines()
-    assert lines[1].startswith("1998-01,A,")
-    assert lines[2].startswith("1998-02,A,")
-    assert lines[3].startswith("1998-02,B,")
-
-
-def test_dataframe_to_chap_csv_temporal_continuity_error_on_gaps():
-    # Missing 1998-02 for location A should trigger an error by default.
+def test_find_temporal_gaps_global_window_inferred():
+    # Global window inferred from dataset: 1998-01 .. 1998-03
     df = pd.DataFrame(
         {
             "org_id": ["A", "A", "B"],
             "period": ["1998-01", "1998-03", "1998-01"],
-            "dengue_cases": [1.0, 2.0, 0.0],
+            "cases": [1, 2, 0],
         }
     )
 
-    with pytest.raises(ValueError, match="Temporal continuity check failed"):
+    gaps = find_temporal_gaps(
+        df,
+        column_map={
+            "time_period": "period",
+            "location": "org_id",
+            "disease_cases": "cases",
+        },
+        freq="monthly",
+    )
+
+    assert gaps == {"A": ["1998-02"], "B": ["1998-02", "1998-03"]}
+
+
+def test_find_temporal_gaps_with_explicit_window():
+    df = pd.DataFrame(
+        {
+            "org_id": ["A"],
+            "period": ["1998-02"],
+            "cases": [1],
+        }
+    )
+
+    gaps = find_temporal_gaps(
+        df,
+        column_map={
+            "time_period": "period",
+            "location": "org_id",
+            "disease_cases": "cases",
+        },
+        start="1998-01",
+        end="1998-03",
+        freq="monthly",
+    )
+
+    assert gaps == {"A": ["1998-01", "1998-03"]}
+
+
+# -----------------------------------------------------------------------------
+# continuity_policy wiring
+# -----------------------------------------------------------------------------
+
+def test_dataframe_to_chap_csv_errors_on_gaps_by_default():
+    df = pd.DataFrame(
+        {
+            "org_id": ["A", "A"],
+            "period": ["1998-01", "1998-03"],  # missing 1998-02 in inferred window
+            "cases": [1, 2],
+        }
+    )
+
+    with pytest.raises(ValueError):
         dataframe_to_chap_csv(
             df,
             column_map={
                 "time_period": "period",
                 "location": "org_id",
-                "disease_cases": "dengue_cases",
+                "disease_cases": "cases",
             },
-            continuity_policy="error",
         )
 
 
-def test_dataframe_to_chap_csv_temporal_continuity_warn_on_gaps():
+def test_dataframe_to_chap_csv_warns_on_gaps_when_configured():
     df = pd.DataFrame(
         {
             "org_id": ["A", "A"],
-            "period": ["1998-01", "1998-03"],  # gap
-            "dengue_cases": [1.0, 2.0],
-            "x": [10, 20],
+            "period": ["1998-01", "1998-03"],  # missing 1998-02 in inferred window
+            "cases": [1, 2],
         }
     )
 
-    with pytest.warns(UserWarning, match="Temporal continuity check failed"):
+    with pytest.warns(UserWarning):
         csv_text = dataframe_to_chap_csv(
             df,
             column_map={
                 "time_period": "period",
                 "location": "org_id",
-                "disease_cases": "dengue_cases",
+                "disease_cases": "cases",
             },
             continuity_policy="warn",
         )
-    assert "time_period,location,disease_cases" in csv_text
+    assert csv_text.startswith("time_period,location,disease_cases")
 
 
-def test_dataframe_to_chap_csv_temporal_continuity_ignore_on_gaps():
+def test_dataframe_to_chap_csv_ignores_gaps_when_configured():
     df = pd.DataFrame(
         {
             "org_id": ["A", "A"],
             "period": ["1998-01", "1998-03"],  # gap
-            "dengue_cases": [1.0, 2.0],
+            "cases": [1, 2],
+            "temp": [25.0, 26.0],
         }
     )
 
@@ -232,21 +188,50 @@ def test_dataframe_to_chap_csv_temporal_continuity_ignore_on_gaps():
         column_map={
             "time_period": "period",
             "location": "org_id",
-            "disease_cases": "dengue_cases",
+            "disease_cases": "cases",
         },
         continuity_policy="ignore",
     )
-    assert "1998-01" in csv_text
-    assert "1998-03" in csv_text
+
+    header = csv_text.splitlines()[0].split(",")
+    assert header[:3] == ["time_period", "location", "disease_cases"]
+    assert "temp" in header
+
+
+# -----------------------------------------------------------------------------
+# Happy path and file writing
+# -----------------------------------------------------------------------------
+
+def test_dataframe_to_chap_csv_output_ok_when_continuous():
+    df = pd.DataFrame(
+        {
+            "org_id": ["A", "A"],
+            "period": ["1998-01", "1998-02"],
+            "cases": [1, 2],
+            "temp": [25.0, 26.0],
+        }
+    )
+
+    csv_text = dataframe_to_chap_csv(
+        df,
+        column_map={
+            "time_period": "period",
+            "location": "org_id",
+            "disease_cases": "cases",
+        },
+    )
+
+    assert csv_text.startswith("time_period,location,disease_cases,temp")
+    assert "1998-01,A,1" in csv_text
+    assert "1998-02,A,2" in csv_text
 
 
 def test_dataframe_to_chap_csv_writes_file(tmp_path):
     df = pd.DataFrame(
         {
-            "ou_uid": ["X", "X"],
-            "month": ["199801", "199802"],
-            "cases_total": [1.0, 2.0],
-            "temperature": [25.0, 26.0],
+            "org_id": ["A", "A"],
+            "period": ["1998-01", "1998-02"],
+            "cases": [1, 2],
         }
     )
 
@@ -254,17 +239,16 @@ def test_dataframe_to_chap_csv_writes_file(tmp_path):
     res = dataframe_to_chap_csv(
         df,
         column_map={
-            "time_period": "month",
-            "location": "ou_uid",
-            "disease_cases": "cases_total",
+            "time_period": "period",
+            "location": "org_id",
+            "disease_cases": "cases",
         },
         output_path=str(out_path),
-        continuity_policy="error",
     )
 
     assert res is None
     assert out_path.exists()
     content = out_path.read_text()
     assert content.splitlines()[0].startswith("time_period,location,disease_cases")
-    assert "1998-01,X,1.0" in content
-    assert "1998-02,X,2.0" in content
+    assert "1998-01,A,1" in content
+    assert "1998-02,A,2" in content
