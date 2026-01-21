@@ -1,5 +1,8 @@
 # dhis2eo
 
+[![Linting and test status](https://github.com/dhis2/dhis2eo/actions/workflows/ci.yml/badge.svg)](https://github.com/dhis2/dhis2eo/actions/workflows/ci.yml)
+[![Latest version](https://img.shields.io/github/v/release/dhis2/dhis2eo)](https://github.com/dhis2/dhis2eo/releases)
+
 Dhis2eo is a small, focused Python library for DHIS2 users who want to integrate earth observation and climate data into their workflows. It provides lightweight helpers and tools bridging the Python geoscience and DHIS2 ecosystems.
 
 ---
@@ -39,7 +42,7 @@ This leads to a few guiding principles:
   Code should be short, easy to read, debug, and explain to someone new to the project.
 
 - **Lightweight Python tooling**:
-  Installing, testing, and running the project should work with widely used Python tools and conventions and support a wide range of operating environments and Python versions, without requiring a suite of extra developer tools. 
+  The project is designed to be easy for developers to install, test, and run, with minimal extra dependencies and broad support across operating systems and Python versions.
 
 These principles help keep the project approachable and durable over time.
 
@@ -47,14 +50,16 @@ These principles help keep the project approachable and durable over time.
 
 ## Installation
 
+Until we make the first Github release, just install from the main Github repo:
+
 ```bash
 pip install git+https://github.com/dhis2/dhis2eo
 ```
 
-For contributors:
+For contributors (to get linting and testing tools):
 
 ```bash
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 ## Running tests
@@ -63,6 +68,12 @@ Tests are written with pytest and can be run directly:
 
 ```bash
 pytest -v
+```
+
+To avoid unnecessary computation and server load, tests for the `data` integrations are marked with `@pytest.mark.integration` and are skipped by default. To run them manually: 
+
+```bash
+pytest -v -m integration
 ```
 
 ## Code formatting
