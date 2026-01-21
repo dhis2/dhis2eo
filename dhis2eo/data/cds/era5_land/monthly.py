@@ -44,9 +44,6 @@ def fetch_years(years, months, bbox, variables):
     # load lazily from disk using xarray
     ds = xr.open_dataset(data.path)
 
-    # clean unnecessary data
-    ds = ds.drop_vars(['number', 'expver'])
-
     # return
     return ds
 
