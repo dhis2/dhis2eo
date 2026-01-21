@@ -42,7 +42,7 @@ This leads to a few guiding principles:
   Code should be short, easy to read, debug, and explain to someone new to the project.
 
 - **Lightweight Python tooling**:
-  Installing, testing, and running the project should work with widely used Python tools and conventions and support a wide range of operating environments and Python versions, without requiring a suite of extra developer tools. 
+  The project is designed to be easy for developers to install, test, and run, with minimal extra dependencies and broad support across operating systems and Python versions.
 
 These principles help keep the project approachable and durable over time.
 
