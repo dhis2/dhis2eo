@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dhis2eo"
-version = "0.2.0"
+version = "1.0.0"
 description = "DHIS2 Earth Observation Toolkit"
 readme = "README.md"
 requires-python = ">=3.10"
