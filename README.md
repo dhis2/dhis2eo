@@ -1,6 +1,6 @@
 # dhis2eo
 
-[![Linting and test status](https://github.com/dhis2/dhis2eo/actions/workflows/ci.yml/badge.svg)](https://github.com/dhis2/dhis2eo/actions/workflows/ci.yml)
+[![Test status](https://github.com/dhis2/dhis2eo/actions/workflows/tests.yml/badge.svg)](https://github.com/dhis2/dhis2eo/actions/workflows/tests.yml)
 [![Latest version](https://img.shields.io/github/v/release/dhis2/dhis2eo)](https://github.com/dhis2/dhis2eo/releases)
 
 Dhis2eo is a small, focused Python library for DHIS2 users who want to integrate earth observation and climate data into their workflows. It provides lightweight helpers and tools bridging the Python geoscience and DHIS2 ecosystems.
