@@ -4,16 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dhis2eo"
-version = "1.0.0"
+version = "1.0.1"
 description = "DHIS2 Earth Observation Toolkit"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "earthkit-data[netcdf,geotiff,geopandas,projection,cds]",
-    "xarray",
-    "rioxarray",
-    "pandas",
-    "numpy",
+    "earthkit-data[netcdf,geotiff,geopandas,projection,cds]==0.16.*",
+    "xarray>=2025.6,<2026",
+    "rioxarray==0.19.*",
+    "pandas>=2.3,<3",
+    "geopandas>=1.1,<2",
+    "numpy>=2.2,<3",
 ]
 
 [tool.setuptools.packages.find]
@@ -22,8 +23,8 @@ include = ["dhis2eo*"]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0",
-    "ruff>=0.14.10",
+    "pytest>=8.0,<9",
+    "ruff==0.14.*",
 ]
 
 [tool.pytest.ini_options]
