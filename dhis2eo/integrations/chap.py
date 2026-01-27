@@ -225,31 +225,33 @@ def find_temporal_gaps(
                 gaps[str(loc)] = [m.strftime("%Y-%m") for m in missing]
         return gaps
 
-    # weekly
-    out["_week_start"] = pd.to_datetime(
-        out["time_period"] + "-1", format="%G-W%V-%u", errors="coerce"
-    )
-    if out["_week_start"].isna().any():
-        raise ValueError("Invalid weekly time_period values")
+    if freq == "weekly":
+        out["_week_start"] = pd.to_datetime(
+            periods + "-1", format="%G-W%V-%u", errors="coerce"
+        )
+        if out["_week_start"].isna().any():
+            raise ValueError("Invalid weekly time_period values")
 
-    start_d = pd.to_datetime(start + "-1", format="%G-W%V-%u") if start else out["_week_start"].min()
-    end_d = pd.to_datetime(end + "-1", format="%G-W%V-%u") if end else out["_week_start"].max()
+        start_d = pd.to_datetime(start + "-1", format="%G-W%V-%u") if start else out["_week_start"].min()
+        end_d = pd.to_datetime(end + "-1", format="%G-W%V-%u") if end else out["_week_start"].max()
 
-    expected = pd.date_range(start_d, end_d, freq="W-MON")
+        expected = pd.date_range(start_d, end_d, freq="W-MON")
 
-    gaps = {}
-    for loc, g in out.groupby("location"):
-        have = pd.DatetimeIndex(g["_week_start"].unique())
-        missing = expected.difference(have)
-        if len(missing):
-            iso = missing.isocalendar()
-            gaps[str(loc)] = (
-                iso["year"].astype(str)
-                + "-W"
-                + iso["week"].astype(int).astype(str).str.zfill(2)
-            ).tolist()
+        gaps = {}
+        for loc, g in out.groupby("location"):
+            have = pd.DatetimeIndex(g["_week_start"].unique())
+            missing = expected.difference(have)
+            if len(missing):
+                iso = missing.isocalendar()
+                gaps[str(loc)] = (
+                    iso["year"].astype(str)
+                    + "-W"
+                    + iso["week"].astype(int).astype(str).str.zfill(2)
+                ).tolist()
 
-    return gaps
+        return gaps
+    
+    raise ValueError("freq must be 'monthly' or 'weekly'")
 
 
 # ---------------------------------------------------------------------
@@ -284,6 +286,7 @@ def dataframe_to_chap_csv(
         out["time_period"], freq=freq, start=start, end=end
     )
 
+    # Handle period continuity
     if continuity_policy != "ignore":
         gaps = find_temporal_gaps(
             df,
@@ -305,10 +308,12 @@ def dataframe_to_chap_csv(
     # Missing rows become NaN (including disease_cases/covariates).
     out = _reindex_to_full_grid(out, expected_periods=expected_periods)
 
+    # Reserved fields
     reserved = list(REQUIRED_RESERVED_FIELDS)
     if "population" in column_map and "population" in out.columns:
         reserved.append("population")
 
+    # Build covariates fields
     if value_cols is not None:
         covariates = list(value_cols)
     elif include_other_cols:
@@ -316,14 +321,18 @@ def dataframe_to_chap_csv(
     else:
         covariates = []
 
+    # Build final reserved + covariates
     cols = reserved + [c for c in covariates if c not in reserved]
     out = out[cols]
 
+    # Sort
     if sort:
         out = out.sort_values(["location", "time_period"])
 
+    # Save to CSV
     if output_path:
         out.to_csv(output_path, index=False)
         return None
 
+    # Return
     return out.to_csv(index=False)
