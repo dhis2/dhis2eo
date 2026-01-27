@@ -29,9 +29,11 @@ from __future__ import annotations
 
 import re
 import warnings
-from typing import Mapping, Optional, Sequence, Union, Literal
+from typing import Literal
 
 import pandas as pd
+
+from ..utils.types import MaybeString, MaybeStringSequence
 
 
 # ---------------------------------------------------------------------
@@ -95,12 +97,12 @@ def _normalize_time_period(series: pd.Series, freq: str = "monthly") -> pd.Serie
     raise ValueError("freq must be 'monthly' or 'weekly'")
 
 
-def _rename_to_reserved_fields(df: pd.DataFrame, column_map: Mapping[str, str]) -> pd.DataFrame:
+def _rename_to_reserved_fields(df: pd.DataFrame, column_map: dict[str, str]) -> pd.DataFrame:
     rename = {v: k for k, v in column_map.items()}
     return df.rename(columns=rename)
 
 
-def _require_columns(df: pd.DataFrame, column_map: Mapping[str, str]) -> None:
+def _require_columns(df: pd.DataFrame, column_map: dict[str, str]) -> None:
     missing_keys = [k for k in REQUIRED_RESERVED_FIELDS if k not in column_map]
     if missing_keys:
         raise KeyError(f"column_map missing required fields: {missing_keys}")
@@ -113,8 +115,8 @@ def _expected_period_strings(
     normalized_time_period: pd.Series,
     *,
     freq: str,
-    start: Optional[str] = None,
-    end: Optional[str] = None,
+    start: MaybeString = None,
+    end: MaybeString = None,
 ) -> list[str]:
     """
     Build the expected global time grid as Chap-formatted strings.
@@ -183,10 +185,10 @@ def _reindex_to_full_grid(df: pd.DataFrame, *, expected_periods: list[str]) -> p
 def find_temporal_gaps(
     df: pd.DataFrame,
     *,
-    column_map: Mapping[str, str],
+    column_map: dict[str, str],
     freq: str = "monthly",
-    start: Optional[str] = None,
-    end: Optional[str] = None,
+    start: MaybeString = None,
+    end: MaybeString = None,
 ) -> dict[str, list[str]]:
     """
     Return all missing periods per location over a global time window.
@@ -257,16 +259,16 @@ def find_temporal_gaps(
 def dataframe_to_chap_csv(
     df: pd.DataFrame,
     *,
-    column_map: Mapping[str, str],
+    column_map: dict[str, str],
     freq: str = "monthly",
-    start: Optional[str] = None,
-    end: Optional[str] = None,
+    start: MaybeString = None,
+    end: MaybeString = None,
     continuity_policy: ContinuityPolicy = "error",
     include_other_cols: bool = True,
-    value_cols: Optional[Sequence[str]] = None,
+    value_cols: MaybeStringSequence = None,
     sort: bool = True,
-    output_path: Optional[str] = None,
-) -> Union[str, None]:
+    output_path: MaybeString = None,
+) -> MaybeString:
     """
     Convert a harmonized DataFrame to a Chap-compatible CSV.
 
