@@ -197,6 +197,29 @@ def test_dataframe_to_chap_csv_ignores_gaps_when_configured():
     assert header[:3] == ["time_period", "location", "disease_cases"]
     assert "temp" in header
 
+def test_dataframe_to_chap_csv_ignore_outputs_full_grid_with_nans():
+    df = pd.DataFrame(
+        {
+            "org_id": ["A", "A"],
+            "period": ["1998-01", "1998-03"],  # missing 1998-02
+            "cases": [1, 2],
+            "temp": [10.0, 30.0],
+        }
+    )
+
+    csv_text = dataframe_to_chap_csv(
+        df,
+        column_map={
+            "time_period": "period",
+            "location": "org_id",
+            "disease_cases": "cases",
+        },
+        continuity_policy="ignore",
+    )
+
+    # Missing 1998-02 row should exist; NaNs serialize as empty CSV fields.
+    missing_line = [ln for ln in csv_text.strip().splitlines() if ln.startswith("1998-02,A,")][0]
+    assert missing_line.startswith("1998-02,A,,")
 
 # -----------------------------------------------------------------------------
 # Happy path and file writing

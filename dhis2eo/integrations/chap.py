@@ -109,6 +109,72 @@ def _require_columns(df: pd.DataFrame, column_map: Mapping[str, str]) -> None:
     if missing_cols:
         raise KeyError(f"Input DataFrame missing columns: {missing_cols}")
 
+def _expected_period_strings(
+    normalized_time_period: pd.Series,
+    *,
+    freq: str,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+) -> list[str]:
+    """
+    Build the expected global time grid as Chap-formatted strings.
+
+    - If start/end are provided, they define the window.
+    - Otherwise, infer from the dataset (earliest..latest period).
+    """
+    if normalized_time_period.empty:
+        return []
+
+    if freq == "monthly":
+        p = pd.PeriodIndex(normalized_time_period.astype(str), freq="M")
+        start_p = pd.Period(start, freq="M") if start else p.min()
+        end_p = pd.Period(end, freq="M") if end else p.max()
+        exp = pd.period_range(start_p, end_p, freq="M")
+        return [x.strftime("%Y-%m") for x in exp]
+
+    if freq == "weekly":
+        wk = pd.to_datetime(
+            normalized_time_period.astype(str) + "-1",
+            format="%G-W%V-%u",
+            errors="coerce",
+        )
+        if wk.isna().any():
+            raise ValueError("Invalid weekly time_period values")
+
+        start_d = pd.to_datetime(start + "-1", format="%G-W%V-%u") if start else wk.min()
+        end_d = pd.to_datetime(end + "-1", format="%G-W%V-%u") if end else wk.max()
+
+        exp = pd.date_range(start_d, end_d, freq="W-MON")
+        iso = exp.isocalendar()
+        return (
+            iso["year"].astype(str)
+            + "-W"
+            + iso["week"].astype(int).astype(str).str.zfill(2)
+        ).tolist()
+
+    raise ValueError("freq must be 'monthly' or 'weekly'")
+
+
+def _reindex_to_full_grid(df: pd.DataFrame, *, expected_periods: list[str]) -> pd.DataFrame:
+    """
+    Materialize full (location × time_period) grid.
+
+    Any missing (location, time_period) rows become real rows with NaN values
+    for disease_cases/covariates/etc.
+    """
+    if df.empty or not expected_periods:
+        return df
+
+    locations = df["location"].astype(str).unique().tolist()
+    full_index = pd.MultiIndex.from_product(
+        [locations, expected_periods],
+        names=["location", "time_period"],
+    )
+    return (
+        df.set_index(["location", "time_period"])
+        .reindex(full_index)
+        .reset_index()
+    )
 
 # ---------------------------------------------------------------------
 # Public helpers
@@ -212,6 +278,10 @@ def dataframe_to_chap_csv(
     out = _rename_to_reserved_fields(df.copy(), column_map)
     out["time_period"] = _normalize_time_period(out["time_period"], freq=freq)
 
+    expected_periods = _expected_period_strings(
+        out["time_period"], freq=freq, start=start, end=end
+    )
+
     if continuity_policy != "ignore":
         gaps = find_temporal_gaps(
             df,
@@ -228,6 +298,10 @@ def dataframe_to_chap_csv(
             if continuity_policy == "error":
                 raise ValueError(msg)
             warnings.warn(msg, UserWarning)
+
+    # Always materialize the complete grid for Chap consumption.
+    # Missing rows become NaN (including disease_cases/covariates).
+    out = _reindex_to_full_grid(out, expected_periods=expected_periods)
 
     reserved = list(REQUIRED_RESERVED_FIELDS)
     if "population" in column_map and "population" in out.columns:
