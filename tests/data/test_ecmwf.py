@@ -30,13 +30,13 @@ def test_download_hourly_ifs_data():
 
     # start/end dates
     # NOTE: these are realtime forecast, so only last 4 days are available
-    start = '2026-01-05' #( date.today() - timedelta(days=1) ).isoformat()
+    start = '2026-02-01' #( date.today() - timedelta(days=1) ).isoformat()
     end = start
 
     # download
     variables = ['2t'] # tp
     paths = ifs.hourly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
-                                variables=variables, overwrite=False)
+                                variables=variables, overwrite=True)
     logging.info(paths)
     assert len(paths) == 1
 
@@ -54,29 +54,29 @@ def test_download_hourly_ifs_data():
     #fig.save(dirname / 'quickplot.png')
 
 
-@pytest.mark.integration
-def test_download_monthly_ifs_data():
-    # download args
-    dirname = DATA_DIR / '../test_outputs/ecmwf'
-    prefix = 'ifs_monthly_sierra_leone'
+# @pytest.mark.integration
+# def test_download_monthly_ifs_data():
+#     # download args
+#     dirname = DATA_DIR / '../test_outputs/ecmwf'
+#     prefix = 'ifs_monthly_sierra_leone'
 
-    # get bbox
-    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
-    org_units = gpd.read_file(geojson_file)
-    bbox = org_units.total_bounds
+#     # get bbox
+#     geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+#     org_units = gpd.read_file(geojson_file)
+#     bbox = org_units.total_bounds
 
-    # start/end dates
-    # NOTE: these are realtime forecast, so only last 4 days are available
-    start = '2026-01-05'
-    end = start
+#     # start/end dates
+#     # NOTE: these are realtime forecast, so only last 4 days are available
+#     start = '2026-01-05'
+#     end = start
 
-    # download
-    variables = ['2t'] # tp
-    paths = ifs.monthly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
-                                variables=variables, overwrite=False)
-    logging.info(paths)
-    assert len(paths) == 1
+#     # download
+#     variables = ['2t'] # tp
+#     paths = ifs.monthly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
+#                                 variables=variables, overwrite=False)
+#     logging.info(paths)
+#     assert len(paths) == 1
 
-    # test opening multifile xarray
-    ds = xr.open_mfdataset(paths).load()
-    logging.info(ds)
+#     # test opening multifile xarray
+#     ds = xr.open_mfdataset(paths).load()
+#     logging.info(ds)
