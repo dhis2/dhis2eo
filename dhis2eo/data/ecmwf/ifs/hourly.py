@@ -1,10 +1,20 @@
-import calendar
-import json
 import logging
 from pathlib import Path
 import os
 from datetime import date, timedelta
 from tempfile import TemporaryDirectory
+
+# Hack to prevent progress bars for each file download
+# This has to happen before importing ecmwf.opendata
+import tqdm
+import tqdm.notebook
+import tqdm.auto
+def disabled_tqdm(*args, **kwargs):
+    kwargs['disable'] = True
+    return tqdm.std.tqdm(*args, **kwargs)
+tqdm.tqdm = disabled_tqdm
+tqdm.notebook.tqdm = disabled_tqdm
+tqdm.auto.tqdm = disabled_tqdm
 
 from ecmwf.opendata import Client
 import xarray as xr
@@ -63,23 +73,31 @@ def fetch_day(client, day, bbox, variables):
     steps = list(range(0, 144 + 3, 3)) + list(range(150, 360 + 6, 6))
 
     # downloads go inside temp dir which handles the cleanup of ALL files generated inside it
-    # TODO: might be best to wrap the tempdir in the fetch_day function to speed things up
     with TemporaryDirectory(prefix=f'forecast_{day}', delete=True) as tmpdir:
 
         # fetch one step at a time
-        logger.info(f'Downloading to temporary folder {tmpdir}')
+        logger.debug(f'Downloading to temporary folder {tmpdir}')
         files = []
         for step in steps:
             file = fetch_forecast_step(client, day, step, variables, dirname=tmpdir)
             files.append(file)
 
         # lazy open all global files
-        logger.info('Cropping to bbox')
-        with xr.open_mfdataset(files, combine='nested', concat_dim='time') as ds:
+        logger.debug('Cropping to bbox')
+        with xr.open_mfdataset(
+            files, 
+            combine='nested', 
+            concat_dim='step', 
+            coords='minimal',  # Explicitly set this to opt-in and silence future change warning
+            compat='override'  # Highly recommended for GRIB to skip tiny float comparisons
+        ) as ds:
             # extract only the bbox and load to memory
             xmin,ymin,xmax,ymax = map(float, bbox)
             crop = ds.sel(longitude=slice(xmin, xmax), latitude=slice(ymax, ymin))
             crop.load()
+
+    # force 'time' to be a dimension even if it only has 1 value
+    crop = crop.expand_dims("time")
 
     # return
     return crop
