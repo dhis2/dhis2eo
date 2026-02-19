@@ -26,7 +26,7 @@ def submit_year_block(client, start_year, end_year, region, save_path, variables
         "ensemble_member": "r1i1p1",
         "start_year": [str(start_year)],
         "end_year": [str(end_year)],
-        "download_format": "unarchived",
+        "download_format": "unarchived", # TODO: seems like this is unsupported, so all files are retrieved as zipfiles and have to be extracted
     }
 
     # download the data
@@ -86,8 +86,10 @@ def submit(client, start_date, end_date, region, dirname, prefix, variables, sce
 
 def get(start_date, end_date, region, dirname, prefix, variables, scenario, resolution, models, overwrite=False):
     # valid variable names
-    # - "2m_air_temperature",
-    # - "2m_relative_humidity",
+    # - "2m_air_temperature"
+    # - "maximum_2m_temperature_in_the_last_24_hours"
+    # - "minimum_2m_temperature_in_the_last_24_hours"
+    # - "2m_relative_humidity"
     # - "mean_precipitation_flux"
 
     # create ecmwf client
