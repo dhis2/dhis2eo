@@ -3,6 +3,7 @@ import time
 import zipfile
 import shutil
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 from ecmwf.datastores import Client
 
@@ -87,6 +88,8 @@ def submit(client, start_date, end_date, region, dirname, prefix, variables, sce
     return results
 
 def download_to_path(remote, filepath):
+    print('Request ready, downloading to', filepath)
+
     # download as a zipfile
     filepath_zip = Path(filepath).with_suffix('.zip')
     remote.download(filepath_zip)
@@ -102,6 +105,9 @@ def download_to_path(remote, filepath):
 
     # delete the zipfile afterwards
     filepath_zip.unlink()
+
+    # finished
+    print('Finished downloading to', filepath)
 
 def get(start_date, end_date, region, dirname, prefix, variables, scenario, resolution, models, overwrite=False):
     # valid variable names
@@ -123,6 +129,9 @@ def get(start_date, end_date, region, dirname, prefix, variables, scenario, reso
 
     # download files if needed
     if total_downloads:
+        max_downloads = 5
+        multi_downloader = ThreadPoolExecutor(max_workers=max_downloads)
+
         # continuously check and collect results
         while True:
             # check for any remaining request ids
@@ -133,7 +142,7 @@ def get(start_date, end_date, region, dirname, prefix, variables, scenario, reso
             ]
 
             if remaining:
-                print(f'Progress: {total_downloads - len(remaining)} of {total_downloads} downloads finished')
+                print(f'Progress: {total_downloads - len(remaining)} of {total_downloads} job requests finished')
 
                 # get list of ready results
                 ready = [
@@ -146,13 +155,11 @@ def get(start_date, end_date, region, dirname, prefix, variables, scenario, reso
                 if ready:
                     # get first of the ready
                     i, filepath, remote = ready[0]
-                    print('Request ready, downloading to', filepath)
                     
                     # download the file
-                    download_to_path(remote, filepath)
-                    print('Finished downloading to', filepath)
+                    multi_downloader.submit(download_to_path, remote, filepath)
                 
-                    # set requiest id to None to indicate that job is no longer running
+                    # set request id to None to indicate that job is no longer running
                     results[i] = (filepath, None)
 
                 else:
@@ -162,7 +169,8 @@ def get(start_date, end_date, region, dirname, prefix, variables, scenario, reso
                     
             else:
                 # stop checking if no remaining request ids
-                print(f'All {total_downloads} downloads finished')
+                print(f'All {total_downloads} job requests completed, waiting for downloads to finish')
+                multi_downloader.shutdown(wait=True)
                 break
     
     # return all local filepaths to user
