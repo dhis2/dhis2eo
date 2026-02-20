@@ -1,5 +1,7 @@
 import json
 import time
+import zipfile
+import shutil
 from pathlib import Path
 
 from ecmwf.datastores import Client
@@ -26,7 +28,7 @@ def submit_year_block(client, start_year, end_year, region, save_path, variables
         "ensemble_member": "r1i1p1",
         "start_year": [str(start_year)],
         "end_year": [str(end_year)],
-        "download_format": "unarchived", # TODO: seems like this is unsupported, so all files are retrieved as zipfiles and have to be extracted
+        #"download_format": "unarchived", # seems like this is unsupported, so all files are retrieved as zipfiles and have to be extracted
     }
 
     # download the data
@@ -84,6 +86,23 @@ def submit(client, start_date, end_date, region, dirname, prefix, variables, sce
     results = list(zip(files, request_ids))
     return results
 
+def download_to_path(remote, filepath):
+    # download as a zipfile
+    filepath_zip = Path(filepath).with_suffix('.zip')
+    remote.download(filepath_zip)
+
+    # extract file from zipfile to target filename
+    with zipfile.ZipFile(filepath_zip, 'r') as zobj:
+        # Grab the name of the first (and only) member
+        first_file = zobj.namelist()[0]
+        
+        # Read and write directly to the new path
+        with zobj.open(first_file) as source, open(filepath, "wb") as target:
+            shutil.copyfileobj(source, target)
+
+    # delete the zipfile afterwards
+    filepath_zip.unlink()
+
 def get(start_date, end_date, region, dirname, prefix, variables, scenario, resolution, models, overwrite=False):
     # valid variable names
     # - "2m_air_temperature"
@@ -99,33 +118,52 @@ def get(start_date, end_date, region, dirname, prefix, variables, scenario, reso
     # submit or get from cache
     results = submit(client, start_date, end_date, region, dirname, prefix, variables, scenario, resolution, models, overwrite=overwrite)
     
-    # continuously check and collect results
-    while True:
-        # stop checking if no remaining remotes
-        remaining_count = len([filepath for filepath,request_id in results if request_id])
-        if remaining_count == 0:
-            print('All job requests finished, returning all downloaded files')
-            break
+    # check how many files to download
+    total_downloads = sum([1 for filepath,request_id in results if request_id])
 
-        # check any remaining
-        print(f'Checking results for {remaining_count} remaining job requests')
-        for i in range(len(results)):
-            filepath, request_id = results[i]
+    # download files if needed
+    if total_downloads:
+        # continuously check and collect results
+        while True:
+            # check for any remaining request ids
+            remaining = [
+                (i, filepath, client.get_remote(request_id)) 
+                for i,(filepath,request_id) in enumerate(results)
+                if request_id
+            ]
 
-            if request_id:
-                # get latest remote status
-                remote = client.get_remote(request_id)
+            if remaining:
+                print(f'Progress: {total_downloads - len(remaining)} of {total_downloads} downloads finished')
 
-                if remote.results_ready:
-                    # download
+                # get list of ready results
+                ready = [
+                    (i, filepath, remote)
+                    for i,filepath,remote in remaining
+                    if remote.results_ready
+                ]
+
+                # process first ready results if available
+                if ready:
+                    # get first of the ready
+                    i, filepath, remote = ready[0]
                     print('Request ready, downloading to', filepath)
-                    remote.download(filepath)
+                    
+                    # download the file
+                    download_to_path(remote, filepath)
                     print('Finished downloading to', filepath)
-                    # set remote to None to indicate not one of the remaining
+                
+                    # set requiest id to None to indicate that job is no longer running
                     results[i] = (filepath, None)
 
-        # take a break before checking again
-        time.sleep(5)
+                else:
+                    # all remaining are still processing
+                    # take a break before checking again
+                    time.sleep(15)
+                    
+            else:
+                # stop checking if no remaining request ids
+                print(f'All {total_downloads} downloads finished')
+                break
     
     # return all local filepaths to user
     filepaths = [filepath for filepath,request_id in results]
