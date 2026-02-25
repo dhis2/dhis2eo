@@ -54,6 +54,30 @@ def test_download_hourly_era5_data():
 
 
 @pytest.mark.integration
+def test_download_hourly_era5_data_no_server_cache():
+    # download args
+    dirname = DATA_DIR / '../test_outputs/cds'
+    prefix = 'era5_hourly_sierra_leone'
+
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    org_units = gpd.read_file(geojson_file)
+    bbox = org_units.total_bounds
+
+    # start/end dates
+    start = '2025-01'
+    end = '2025-01'
+
+    # download
+    variables = ['2m_temperature']
+    paths = era5_land.hourly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
+                                      variables=variables, overwrite=True,
+                                      use_server_cache=False)
+    logging.info(paths)
+    assert len(paths) == 1
+
+
+@pytest.mark.integration
 def test_download_hourly_era5_skip_incomplete_month():
     # download args
     dirname = DATA_DIR / '../test_outputs/cds'

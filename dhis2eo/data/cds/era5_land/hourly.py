@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 import os
 from datetime import date, timedelta
+import time
 
 from ecmwf.datastores import Client
 import xarray as xr
@@ -17,7 +18,7 @@ force_logging(logger)
 
 
 # Internal function to execute a single monthly file download (API only allows one month at a time)
-def request_month(client, year, month, bbox, variables):
+def request_month(client, year, month, bbox, variables, use_server_cache):
     # extract the coordinates from input bounding box
     xmin, ymin, xmax, ymax = map(float, bbox)
 
@@ -35,6 +36,12 @@ def request_month(client, year, month, bbox, variables):
         "data_format": "netcdf",
         "download_format": "unarchived",
     }
+
+    # if use_server_cache is False, add tiny numeric flag to invalidate request hash
+    # see: https://forum.ecmwf.int/t/how-to-avoid-the-cds-cache-issue/905/2
+    if not use_server_cache:
+        unique_numeric_string = str(int(time.time()))
+        params['nocache'] = unique_numeric_string
 
     # download the data with earthkit
     logger.info("Downloading data from CDS API...")
@@ -56,6 +63,7 @@ def download(
     dirname: str,
     prefix: str,
     variables: list[str],
+    use_server_cache: bool = True,
     overwrite: bool = False,
 ):
     """
@@ -112,8 +120,8 @@ def download(
         
         else:
             # Submit job request
-            remote = request_month(client=client, year=year, month=month, bbox=bbox, variables=variables)
-            
+            remote = request_month(client=client, year=year, month=month, bbox=bbox, variables=variables, use_server_cache=use_server_cache)
+
             # Wait for results and save to target path
             remote.download(save_path)
 
