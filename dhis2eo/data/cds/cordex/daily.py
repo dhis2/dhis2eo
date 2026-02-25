@@ -87,7 +87,7 @@ def submit(client, start_date, end_date, region, dirname, prefix, variables, sce
     results = list(zip(files, request_ids))
     return results
 
-def download_to_path(remote, filepath):
+def extract_file(remote, filepath, bbox=None):
     print('Request ready, downloading to', filepath)
 
     # download as a zipfile
@@ -103,13 +103,17 @@ def download_to_path(remote, filepath):
         with zobj.open(first_file) as source, open(filepath, "wb") as target:
             shutil.copyfileobj(source, target)
 
+    # if bbox, open and crop to bbox incl edge padding
+    # also have to detect 0-360 though, and i guess then maybe alter the file coords
+    # ... 
+
     # delete the zipfile afterwards
     filepath_zip.unlink()
 
     # finished
     print('Finished downloading to', filepath)
 
-def get(start_date, end_date, region, dirname, prefix, variables, scenario, resolution, models, overwrite=False):
+def download(start_date, end_date, region, dirname, prefix, variables, scenario, resolution, models, bbox=None, overwrite=False):
     # valid variable names
     # - "2m_air_temperature"
     # - "maximum_2m_temperature_in_the_last_24_hours"
@@ -156,8 +160,8 @@ def get(start_date, end_date, region, dirname, prefix, variables, scenario, reso
                     # get first of the ready
                     i, filepath, remote = ready[0]
                     
-                    # download the file
-                    multi_downloader.submit(download_to_path, remote, filepath)
+                    # download and extract the file
+                    multi_downloader.submit(extract_file, remote, filepath, bbox)
                 
                     # set request id to None to indicate that job is no longer running
                     results[i] = (filepath, None)
