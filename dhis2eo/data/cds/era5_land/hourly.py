@@ -17,7 +17,7 @@ force_logging(logger)
 
 
 # Internal function to execute a single monthly file download (API only allows one month at a time)
-def submit_month_job(client, year, month, bbox, variables):
+def request_month(client, year, month, bbox, variables):
     # extract the coordinates from input bounding box
     xmin, ymin, xmax, ymax = map(float, bbox)
 
@@ -112,8 +112,8 @@ def download(
         
         else:
             # Submit job request
-            remote = submit_month_job(client=client, year=year, month=month, bbox=bbox, variables=variables)
-                
+            remote = request_month(client=client, year=year, month=month, bbox=bbox, variables=variables)
+            
             # Wait for results and save to target path
             remote.download(save_path)
 

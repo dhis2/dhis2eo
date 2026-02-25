@@ -3,7 +3,7 @@ import logging
 import os
 from pathlib import Path
 
-import earthkit.data
+from ecmwf.datastores import Client
 import xarray as xr
 
 from ...utils import force_logging
@@ -12,13 +12,9 @@ from ....utils.types import DateLike, BBox
 logger = logging.getLogger(__name__)
 force_logging(logger)
 
-# Try to fix CDS cache issue by setting download threads to 1
-config = earthkit.data.config
-config.set("number-of-download-threads", 1)
-
 
 # Internal function to fetch data from the CDS API
-def fetch_years(years, months, bbox, variables):
+def request_years(client, years, months, bbox, variables):
     """Download monthly era5-land data"""
 
     # extract the coordinates from input bounding box
@@ -39,13 +35,13 @@ def fetch_years(years, months, bbox, variables):
     # download the data
     logger.info("Downloading data from CDS API...")
     logger.info(f"Request parameters: \n{json.dumps(params)}")
-    data = earthkit.data.from_source("cds", "reanalysis-era5-land-monthly-means", **params)
-
-    # load lazily from disk using xarray
-    ds = xr.open_dataset(data.path)
+    remote = client.submit(
+        "reanalysis-era5-land-monthly-means",
+        params
+    )
 
     # return
-    return ds
+    return remote
 
 # Public API to retrieve data for bbox between start and end date
 def download(
@@ -64,14 +60,18 @@ def download(
     """
     os.makedirs(dirname, exist_ok=True)
 
+    # Parse dates
     start_year = int(start)
     end_year = int(end)
     years = range(start_year, end_year+1)
     months = range(1, 12+1)
 
-    files = []
+    # Create ecmwf client
+    client = Client()
+    client.check_authentication()
 
     # Determine the save path
+    files = []
     save_file = f'{prefix}_{start_year}-{end_year}.nc'
     save_path = (Path(dirname) / save_file).resolve()
     files.append(save_path)
@@ -82,11 +82,11 @@ def download(
         logger.info(f'File already downloaded: {save_path}')
     
     else:
-        # Download the data
-        ds = fetch_years(years=years, months=months, bbox=bbox, variables=variables)
+        # Submit job request
+        remote = request_years(client=client, years=years, months=months, bbox=bbox, variables=variables)
             
-        # Save to target path
-        ds.to_netcdf(save_path)
+        # Wait for results and save to target path
+        remote.download(save_path)
 
     # return list of all file downloads
     return files
