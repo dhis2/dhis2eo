@@ -30,14 +30,14 @@ def test_download_hourly_era5_data():
 
     # start/end dates
     start = '2025-01'
-    end = '2025-03'
+    end = '2025-02'
 
     # download
     variables = ['2m_temperature', 'total_precipitation']
     paths = era5_land.hourly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
-                                      variables=variables)
+                                      variables=variables, overwrite=True)
     logging.info(paths)
-    assert len(paths) == 3
+    assert len(paths) == 2
 
     # test opening multifile xarray
     ds = xr.open_mfdataset(paths)

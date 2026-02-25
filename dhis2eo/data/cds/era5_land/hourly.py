@@ -5,7 +5,7 @@ from pathlib import Path
 import os
 from datetime import date, timedelta
 
-import earthkit.data
+from ecmwf.datastores import Client
 import xarray as xr
 
 from ...utils import force_logging
@@ -16,13 +16,8 @@ logger = logging.getLogger(__name__)
 force_logging(logger)
 
 
-# Try to fix CDS cache issue by setting download threads to 1
-config = earthkit.data.config
-config.set("number-of-download-threads", 1)
-
-
 # Internal function to execute a single monthly file download (API only allows one month at a time)
-def fetch_month(year, month, bbox, variables):
+def submit_month_job(client, year, month, bbox, variables):
     # extract the coordinates from input bounding box
     xmin, ymin, xmax, ymax = map(float, bbox)
 
@@ -44,13 +39,13 @@ def fetch_month(year, month, bbox, variables):
     # download the data with earthkit
     logger.info("Downloading data from CDS API...")
     logger.info(f"Request parameters: \n{json.dumps(params)}")
-    data = earthkit.data.from_source("cds", "reanalysis-era5-land", **params)
-
-    # load lazily from disk using xarray
-    ds = xr.open_dataset(data.path)
+    remote = client.submit(
+        "reanalysis-era5-land",
+        params
+    )
 
     # return
-    return ds
+    return remote
 
 
 # Public API to retrieve data for bbox between start and end date
@@ -70,6 +65,7 @@ def download(
     """
     os.makedirs(dirname, exist_ok=True)
 
+    # Parse dates
     start_year, start_month = map(int, start.split('-')[:2])
     end_year, end_month = map(int, end.split('-')[:2])
 
@@ -79,6 +75,13 @@ def download(
     current_date = date.today()
     last_updated_date = current_date - timedelta(days=7)
 
+    # Create ecmwf client
+    client = Client()
+    client.check_authentication()
+
+    # Begin downloads
+    # NOTE: Although ecmwf-datastores allows asynch jobs, era5-land is limited to max 1 runnning job
+    # ...so just doing it regular synchronously
     files = []
     for year, month in iter_months(start_year, start_month, end_year, end_month):
         logger.info(f'Month {year}-{month}')
@@ -108,11 +111,11 @@ def download(
             logger.info(f'File already downloaded: {save_path}')
         
         else:
-            # Download the data
-            ds = fetch_month(year=year, month=month, bbox=bbox, variables=variables)
+            # Submit job request
+            remote = submit_month_job(client=client, year=year, month=month, bbox=bbox, variables=variables)
                 
-            # Save to target path
-            ds.to_netcdf(save_path)
+            # Wait for results and save to target path
+            remote.download(save_path)
 
     # return list of all file downloads
     return files
