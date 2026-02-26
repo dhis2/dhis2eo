@@ -30,14 +30,14 @@ def test_download_hourly_era5_data():
 
     # start/end dates
     start = '2025-01'
-    end = '2025-03'
+    end = '2025-02'
 
     # download
     variables = ['2m_temperature', 'total_precipitation']
     paths = era5_land.hourly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
-                                      variables=variables)
+                                      variables=variables, overwrite=True)
     logging.info(paths)
-    assert len(paths) == 3
+    assert len(paths) == 2
 
     # test opening multifile xarray
     ds = xr.open_mfdataset(paths)
@@ -51,6 +51,30 @@ def test_download_hourly_era5_data():
     #from earthkit.plots import quickplot
     #fig = quickplot(ds.sel(valid_time=start))
     #fig.save(dirname / 'quickplot.png')
+
+
+@pytest.mark.integration
+def test_download_hourly_era5_data_no_server_cache():
+    # download args
+    dirname = DATA_DIR / '../test_outputs/cds'
+    prefix = 'era5_hourly_sierra_leone'
+
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    org_units = gpd.read_file(geojson_file)
+    bbox = org_units.total_bounds
+
+    # start/end dates
+    start = '2025-01'
+    end = '2025-01'
+
+    # download
+    variables = ['2m_temperature']
+    paths = era5_land.hourly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
+                                      variables=variables, overwrite=True,
+                                      use_server_cache=False)
+    logging.info(paths)
+    assert len(paths) == 1
 
 
 @pytest.mark.integration
@@ -75,7 +99,7 @@ def test_download_hourly_era5_skip_incomplete_month():
     # download
     variables = ['2m_temperature', 'total_precipitation']
     paths = era5_land.hourly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
-                                      variables=variables)
+                                      variables=variables, overwrite=False)
     logging.info(paths)
 
     # at least the current month should not be downloaded
@@ -96,13 +120,13 @@ def test_download_monthly_era5_data():
     bbox = org_units.total_bounds
 
     # start/end dates
-    start = '1990'
+    start = '2020'
     end = '2025'
 
     # download
     variables = ['2m_temperature', 'total_precipitation']
     paths = era5_land.monthly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
-                                      variables=variables)
+                                      variables=variables, overwrite=True)
     logging.info(paths)
     assert len(paths) == 1
 

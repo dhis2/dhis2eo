@@ -37,7 +37,8 @@ def test_download_daily_chirps3_data():
 
     # download
     paths = chirps3.daily.download(start=start, end=end, bbox=bbox,
-                                   dirname=dirname, prefix=prefix)
+                                   dirname=dirname, prefix=prefix,
+                                   overwrite=True)
     logging.info(paths)
     assert len(paths) == 3
 
@@ -75,7 +76,8 @@ def test_download_daily_chirps3_skip_incomplete_month():
     logging.info(f'Testing months {start} to {end}')
 
     # download
-    paths = chirps3.daily.download(start, end, bbox, dirname=dirname, prefix=prefix)
+    paths = chirps3.daily.download(start, end, bbox, dirname=dirname, prefix=prefix,
+                                   overwrite=False)
     logging.info(paths)
 
     # at least the current month should not be downloaded

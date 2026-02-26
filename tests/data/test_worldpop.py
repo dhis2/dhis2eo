@@ -30,7 +30,8 @@ def test_download_yearly_population_data():
 
     # download
     paths = pop_total.yearly.download(start, end, country_code=country_code, 
-                                      dirname=dirname, prefix=prefix)
+                                      dirname=dirname, prefix=prefix,
+                                      overwrite=True)
     logging.info(paths)
     assert len(paths) == 6
 
@@ -68,7 +69,8 @@ def test_download_yearly_population_versions():
     start = "2010"
     end = "2014"
     global1_paths = pop_total.yearly.download(start, end, country_code=country_code, 
-                                            dirname=dirname, prefix=prefix, version='global1')
+                                            dirname=dirname, prefix=prefix, version='global1',
+                                            overwrite=True)
     global1_ds = xr.open_mfdataset(global1_paths)
     logging.info(global1_ds)
 
@@ -76,7 +78,8 @@ def test_download_yearly_population_versions():
     start = "2015"
     end = "2020"
     global2_paths = pop_total.yearly.download(start, end, country_code=country_code, 
-                                            dirname=dirname, prefix=prefix) # version='global2'
+                                            dirname=dirname, prefix=prefix, # version='global2'
+                                            overwrite=True)
     global2_ds = xr.open_mfdataset(global2_paths)
     logging.info(global2_ds)
 
