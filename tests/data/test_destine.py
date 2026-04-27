@@ -6,7 +6,7 @@ import pytest
 import geopandas as gpd
 import xarray as xr
 
-from dhis2eo.data.destine import era5_land
+from dhis2eo.data.destine import era5, era5_land
 from dhis2eo.utils.time import months_ago
 
 DATA_DIR = Path(__file__).parent.parent / "test_data"
@@ -18,10 +18,10 @@ logging.basicConfig(
 
 
 @pytest.mark.integration
-def test_download_hourly_era5_data():
+def test_download_hourly_era5land_data():
     # download args
     dirname = DATA_DIR / '../test_outputs/destine'
-    prefix = 'era5_hourly_sierra_leone'
+    prefix = 'era5land_hourly_sierra_leone'
 
     # get bbox
     geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
@@ -50,14 +50,14 @@ def test_download_hourly_era5_data():
     # test visualize
     #from earthkit.plots import quickplot
     #fig = quickplot(ds.sel(valid_time=start))
-    #fig.save(dirname / 'quickplot.png')
+    #fig.save(dirname / 'era5land.png')
 
 
 @pytest.mark.integration
-def test_download_hourly_era5_skip_incomplete_month():
+def test_download_hourly_era5land_skip_incomplete_month():
     # download args
     dirname = DATA_DIR / '../test_outputs/cds'
-    prefix = 'era5_hourly_sierra_leone'
+    prefix = 'era5land_hourly_sierra_leone'
 
     # get bbox
     geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
@@ -82,6 +82,42 @@ def test_download_hourly_era5_skip_incomplete_month():
     # if it's earlier than the 15th day, then the previous month will also be skipped
     # this means either 0 or 1 months should be downloaded and returned
     assert len(paths) < 2
+
+
+@pytest.mark.integration
+def test_download_hourly_era5_data():
+    # download args
+    dirname = DATA_DIR / '../test_outputs/destine'
+    prefix = 'era5_hourly_sierra_leone'
+
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    org_units = gpd.read_file(geojson_file)
+    bbox = org_units.total_bounds
+
+    # start/end dates
+    start = '2025-01'
+    end = '2025-03'
+
+    # download
+    variables = ['t2m', 'tp']
+    paths = era5.hourly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
+                                      variables=variables, overwrite=False)
+    logging.info(paths)
+    assert len(paths) == 3
+
+    # test opening multifile xarray
+    ds = xr.open_mfdataset(paths)
+    logging.info(ds)
+
+    # test aggregating temperature to daily
+    daily_temp = ds['t2m'].resample(valid_time='1D').mean().compute()
+    logging.info(daily_temp)
+
+    # test visualize
+    #from earthkit.plots import quickplot
+    #fig = quickplot(ds.sel(valid_time=start))
+    #fig.save(dirname / 'era5.png')
 
 
 # @pytest.mark.integration
