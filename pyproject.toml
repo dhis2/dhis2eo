@@ -7,7 +7,7 @@ name = "dhis2eo"
 version = "1.1.1"
 description = "DHIS2 Earth Observation Toolkit"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "earthkit-data[netcdf,geotiff,geopandas,projection,cds]==0.16.*",
     "ecmwf-datastores-client==0.4.*",
