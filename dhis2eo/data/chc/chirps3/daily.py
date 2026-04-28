@@ -58,11 +58,8 @@ def url_for_day(
     """
     dd = ensure_date(d)
 
-    if stage not in {"final", "prelim"}:
-        raise ValueError("stage must be 'final' or 'prelim'")
-
-    # Final products: both rnl and sat exist
     if stage == "final":
+        # Final products: both rnl and sat exist
         if flavor not in {"rnl", "sat"}:
             raise ValueError("For stage='final', flavor must be 'rnl' or 'sat'")
         return (
@@ -70,16 +67,20 @@ def url_for_day(
             f"{flavor}/cogs/{dd.year}/chirps-v3.0.{flavor}.{dd.year}.{dd.month:02d}.{dd.day:02d}.cog"
         )
 
-    # Preliminary products: directory is sat/, filename uses "prelim"
-    # Note: preliminary data are not available as optimized COGs, only TIFFs. 
-    if flavor != "sat":
-        raise ValueError("For stage='prelim', flavor must be 'sat'")
-    return (
-        "https://data.chc.ucsb.edu/products/CHIRPS/v3.0/daily/prelim/sat/"
-        f"{dd.year}/chirps-v3.0.prelim.{dd.year}.{dd.month:02d}.{dd.day:02d}.tif"
-    )
+    elif stage == "prelim":
+        # Preliminary products: directory is sat/, filename uses "prelim"
+        # Note: preliminary data are not available as optimized COGs, only TIFFs. 
+        if flavor != "sat":
+            raise ValueError("For stage='prelim', flavor must be 'sat'")
+        return (
+            "https://data.chc.ucsb.edu/products/CHIRPS/v3.0/daily/prelim/sat/"
+            f"{dd.year}/chirps-v3.0.prelim.{dd.year}.{dd.month:02d}.{dd.day:02d}.tif"
+        )
 
-def fetch_day(day, bbox, var_name, stage, flavor):  
+    else:
+        raise ValueError("stage must be 'final' or 'prelim'")
+
+def fetch_day(day, bbox, var_name, stage, flavor):
     # Get file url based on the day
     url = url_for_day(day, stage=stage, flavor=flavor)
     #logger.info(f"Reading {day} -> {url}")
@@ -137,14 +138,17 @@ def fetch_month(year, month, bbox, var_name, stage, flavor):
     start_day = date(year=year, month=month, day=1)
     end_day = date(year=year, month=month, day=days_in_month)
 
-    # Loop and fetch data for all days in the month using multiple threads
-    # Note: Seems the CHIRPS servers has some type of scraping protection so we have to limit concurrent downloads
-    logger.info("Extracting and combining daily data from CHC servers...")
-    t = time.time()
-    job_dict = {}
+    # Create multithreaded downloader
     max_threads = 5
-    days = list(iter_days(start_day, end_day))
-    with ThreadPoolExecutor(max_workers=max_threads) as downloader:
+    downloader = ThreadPoolExecutor(max_workers=max_threads)
+
+    try:
+        # Loop and fetch data for all days in the month using multiple threads
+        # Note: Seems the CHIRPS servers has some type of scraping protection so we have to limit concurrent downloads
+        logger.info("Extracting and combining daily data from CHC servers...")
+        t = time.time()
+        job_dict = {}
+        days = list(iter_days(start_day, end_day))
         for day in days:
             #logger.info(f'Queing download job for day {day}')
 
@@ -154,9 +158,14 @@ def fetch_month(year, month, bbox, var_name, stage, flavor):
             # wait a little bit before adding another thread to avoid overwhelming the chirps servers
             time.sleep(0.3)
 
-    # All downloads should have completed at this point
-    # Collect results as list of xarray datasets
-    ds_list = [job_dict[day].result() for day in days]
+        # All downloads should have been submitted at this point
+        # Collect results as list of xarray datasets
+        ds_list = [job_dict[day].result() for day in days]
+
+    finally:
+        # Shut down the multithreaded downloader
+        # Including canceling any remaining submitted threads if something goes wrong
+        downloader.shutdown(wait=False, cancel_futures=True)
     
     # Merge all day ds into a single month ds
     ds = xr.concat(ds_list, dim='time')
