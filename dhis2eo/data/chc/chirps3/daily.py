@@ -80,12 +80,42 @@ def url_for_day(
     else:
         raise ValueError("stage must be 'final' or 'prelim'")
 
-def fetch_day(day, bbox, var_name, stage, flavor):
-    # Get file url based on the day
-    url = url_for_day(day, stage=stage, flavor=flavor)
-    #logger.info(f"Reading {day} -> {url}")
-    t = time.time()
-    
+# def read_rasterio_window(url, bbox):
+#     # not the cleanest, very low level and error prone
+#     import rasterio
+#     with rasterio.open(url) as src:
+#         # Compute the pixel window for the bbox — this is what triggers COG range requests
+#         xmin, ymin, xmax, ymax = bbox
+#         window = src.window(xmin, ymin, xmax, ymax)
+#         transform = src.window_transform(window)
+
+#         data = src.read(
+#             1,                    # band 1
+#             window=window,
+#             masked=True,          # applies nodata mask via rasterio
+#         )
+
+#     # Build coords from the window transform
+#     height, width = data.shape
+#     cols = np.arange(width)
+#     rows = np.arange(height)
+#     xs = transform.c + (cols + 0.5) * transform.a   # pixel center x
+#     ys = transform.f + (rows + 0.5) * transform.e   # pixel center y
+
+#     # Build DataArray
+#     da = xr.DataArray(
+#         data[np.newaxis, :, :],           # add time dim
+#         dims=["band", "y", "x"],
+#         coords={
+#             "y": ys,
+#             "x": xs,
+#             "band": [1],
+#         },
+#     )
+
+#     return da
+
+def read_rioxarray_window(url, bbox):
     # Connect to global dataset lazily
     da = rioxarray.open_rasterio(
         url,
@@ -99,6 +129,17 @@ def fetch_day(day, bbox, var_name, stage, flavor):
     da = da.rio.clip_box(minx=xmin, miny=ymin, maxx=xmax, maxy=ymax)
     da = da.load()
     
+    return da
+
+def fetch_day(day, bbox, var_name, stage, flavor):
+    # Get file url based on the day
+    url = url_for_day(day, stage=stage, flavor=flavor)
+    #logger.info(f"Reading {day} -> {url}")
+    t = time.time()
+
+    # read bbox of cloud hosted raster
+    da = read_rioxarray_window(url, bbox)
+
     # Ensure nodata value is masked and added to metadata
     nodata = -9999.0 # this should be the chirps3 nodata value
     da = da.where(da != nodata) # this adds nans where nodata for plotting
