@@ -163,7 +163,7 @@ def fetch_day(day, bbox, var_name, stage, flavor):
     ds.attrs["flavor"] = flavor
 
     # Return
-    logger.info(f'Finished {day} in {time.time()-t} seconds')
+    #logger.info(f'Finished {day} in {time.time()-t} seconds')
     return ds
 
 def fetch_month(year, month, bbox, var_name, stage, flavor):
@@ -186,7 +186,7 @@ def fetch_month(year, month, bbox, var_name, stage, flavor):
     try:
         # Loop and fetch data for all days in the month using multiple threads
         # Note: Seems the CHIRPS servers has some type of scraping protection so we have to limit concurrent downloads
-        logger.info("Extracting and combining daily data from CHC servers...")
+        logger.info("Downloading daily data from CHC servers...")
         t = time.time()
         job_dict = {}
         days = list(iter_days(start_day, end_day))
@@ -212,7 +212,7 @@ def fetch_month(year, month, bbox, var_name, stage, flavor):
     ds = xr.concat(ds_list, dim='time')
 
     # Return
-    logger.info(f'Month downloaded in {time.time()-t} seconds')
+    #logger.info(f'--> Completed in {time.time()-t} seconds')
     return ds
 
 # -----------------------------------------------------------------------------
