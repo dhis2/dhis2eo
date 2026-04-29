@@ -21,10 +21,10 @@ logging.basicConfig(
 
 
 @pytest.mark.integration
-def test_download_daily_chirps3_data():
+def test_download_daily_chirps3_final():
     # download args
     dirname = DATA_DIR / '../test_outputs/chc'
-    prefix = 'chirps3_daily_sierra_leone'
+    prefix = 'chirps3_final_daily_sierra_leone'
 
     # get bbox
     geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
@@ -32,15 +32,15 @@ def test_download_daily_chirps3_data():
     bbox = org_units.total_bounds
 
     # start/end dates
-    start = "2025-01"
-    end = "2025-03"
+    start = "2025-04"
+    end = "2025-05"
 
     # download
     paths = chirps3.daily.download(start=start, end=end, bbox=bbox,
                                    dirname=dirname, prefix=prefix,
                                    overwrite=True)
     logging.info(paths)
-    assert len(paths) == 3
+    assert len(paths) == 2
 
     # test opening multifile xarray
     ds = xr.open_mfdataset(paths)
@@ -53,7 +53,45 @@ def test_download_daily_chirps3_data():
     # test visualize
     #from earthkit.plots import quickplot
     #fig = quickplot(ds.sel(time=start))
-    #fig.save(dirname / 'quickplot.png')
+    #fig.save(dirname / f'{prefix}.png')
+
+
+@pytest.mark.integration
+def test_download_daily_chirps3_prelim():
+    # download args
+    dirname = DATA_DIR / '../test_outputs/chc'
+    prefix = 'chirps3_prelim_daily_sierra_leone'
+
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    org_units = gpd.read_file(geojson_file)
+    bbox = org_units.total_bounds
+
+    # start/end dates
+    # NOTE: prelim days are missing from some months in Chirps online archives
+    start = "2025-04"
+    end = "2025-05"
+
+    # download
+    paths = chirps3.daily.download(start=start, end=end, bbox=bbox,
+                                   dirname=dirname, prefix=prefix,
+                                   stage='prelim', flavor='sat',
+                                   overwrite=True)
+    logging.info(paths)
+    assert len(paths) == 2
+
+    # test opening multifile xarray
+    ds = xr.open_mfdataset(paths)
+    logging.info(ds)
+
+    # test aggregating to monthly
+    monthly_temp = ds['precip'].resample(time='1M').mean().compute()
+    logging.info(monthly_temp)
+
+    # test visualize
+    #from earthkit.plots import quickplot
+    #fig = quickplot(ds.sel(time=start))
+    #fig.save(dirname / f'{prefix}.png')
 
 
 @pytest.mark.integration
