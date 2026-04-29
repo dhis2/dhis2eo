@@ -163,7 +163,7 @@ def fetch_day(day, bbox, var_name, stage, flavor):
     ds.attrs["flavor"] = flavor
 
     # Return
-    #logger.info(f'Finished {day} in {time.time()-t} seconds')
+    #logger.info(f'Downloaded {day} in {time.time()-t} seconds')
     return ds
 
 def fetch_month(year, month, bbox, var_name, stage, flavor):
@@ -224,8 +224,8 @@ def download(
     start: DateLike,
     end: DateLike,
     bbox: BBox,
-    dirname: str, 
-    prefix: str, 
+    dirname: str,
+    prefix: str,
     stage: str = DEFAULT_STAGE,
     flavor: str = DEFAULT_FLAVOR,
     var_name: str = "precip",
