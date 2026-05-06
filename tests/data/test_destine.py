@@ -6,7 +6,7 @@ import pytest
 import geopandas as gpd
 import xarray as xr
 
-from dhis2eo.data.destine import era5, era5_land, elevation
+from dhis2eo.data.destine import era5, era5_land, copernicus_dem_glo30
 from dhis2eo.utils.time import months_ago
 
 DATA_DIR = Path(__file__).parent.parent / "test_data"
@@ -120,34 +120,8 @@ def test_download_hourly_era5_data():
     #fig.save(dirname / 'era5.png')
 
 
-# @pytest.mark.integration
-# def test_download_monthly_era5_data():
-#     # download args
-#     dirname = DATA_DIR / '../test_outputs/cds'
-#     prefix = 'era5_monthly_sierra_leone'
-
-#     # get bbox
-#     geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
-#     org_units = gpd.read_file(geojson_file)
-#     bbox = org_units.total_bounds
-
-#     # start/end dates
-#     start = '2020'
-#     end = '2025'
-
-#     # download
-#     variables = ['2m_temperature', 'total_precipitation']
-#     paths = era5_land.monthly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
-#                                       variables=variables, overwrite=True)
-#     logging.info(paths)
-#     assert len(paths) == 1
-
-#     # test opening the data
-#     ds = xr.open_dataset(paths[0])
-#     logging.info(ds)
-
 @pytest.mark.integration
-def test_download_elevation_data():
+def test_download_cop_dem_glo30_data():
     # download args
     dirname = DATA_DIR / '../test_outputs/destine'
     prefix = 'elevation_sierra_leone'
@@ -158,7 +132,7 @@ def test_download_elevation_data():
     bbox = org_units.total_bounds
 
     # download
-    paths = elevation.static.download(bbox, dirname=dirname, prefix=prefix, 
+    paths = copernicus_dem_glo30.static.download(bbox, dirname=dirname, prefix=prefix, 
                                       overwrite=True)
     logging.info(paths)
     assert len(paths) == 1
