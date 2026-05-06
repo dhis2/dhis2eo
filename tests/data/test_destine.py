@@ -133,7 +133,7 @@ def test_download_cop_dem_glo30_data():
 
     # download
     paths = copernicus_dem_glo30.static.download(bbox, dirname=dirname, prefix=prefix, 
-                                      overwrite=True)
+                                                 overwrite=True)
     logging.info(paths)
     assert len(paths) == 1
 
