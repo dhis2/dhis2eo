@@ -68,10 +68,15 @@ def download(
     os.makedirs(dirname, exist_ok=True)
 
     # Parse dates
-    start_year = int(start)
-    end_year = int(end)
-    years = range(start_year, end_year+1)
-    months = range(1, 12+1)
+    start_year, start_month = map(int, start.split('-')[:2])
+    end_year, end_month = map(int, end.split('-')[:2])
+
+    # Set correct years months
+    years = list(range(start_year, end_year+1))
+    if len(years) == 1:
+        months = list(range(start_month, end_month+1))
+    else:
+        months = list(range(1, 12+1))
 
     # Create ecmwf client
     client = Client()
