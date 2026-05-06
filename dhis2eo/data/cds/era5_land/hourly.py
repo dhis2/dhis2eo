@@ -43,7 +43,7 @@ def request_month(client, year, month, bbox, variables, use_server_cache):
         unique_numeric_string = str(int(time.time()))
         params['nocache'] = unique_numeric_string
 
-    # download the data with earthkit
+    # download the data
     logger.info("Downloading data from CDS API...")
     logger.info(f"Request parameters: \n{json.dumps(params)}")
     remote = client.submit(

@@ -1,28 +1,30 @@
+import calendar
 import json
 import logging
-import os
 from pathlib import Path
+import os
+from datetime import date, timedelta
+import time
 
 from ecmwf.datastores import Client
 import xarray as xr
 
 from ...utils import force_logging
-from ....utils.types import DateLike, BBox
+from ....utils.time import iter_months
+from ....utils.types import BBox, DateLike
 
 logger = logging.getLogger(__name__)
 force_logging(logger)
 
 
-# Internal function to fetch data from the CDS API
+# Internal function to fetch data from the API
 def request_years(client, years, months, bbox, variables, use_server_cache):
-    """Download monthly era5-land data"""
-
     # extract the coordinates from input bounding box
     xmin, ymin, xmax, ymax = map(float, bbox)
 
     # construct the query parameters
     params = {
-        "product_type": ["monthly_averaged_reanalysis"],
+        "product_type": "monthly_averaged_reanalysis",
         "variable": variables,
         "year": [str(year) for year in years],
         "month": [str(month).zfill(2) for month in months],
@@ -42,12 +44,13 @@ def request_years(client, years, months, bbox, variables, use_server_cache):
     logger.info("Downloading data from CDS API...")
     logger.info(f"Request parameters: \n{json.dumps(params)}")
     remote = client.submit(
-        "reanalysis-era5-land-monthly-means",
+        "reanalysis-era5-single-levels-monthly-means",
         params
     )
 
     # return
     return remote
+
 
 # Public API to retrieve data for bbox between start and end date
 def download(
@@ -61,7 +64,7 @@ def download(
     overwrite: bool = False,
 ):
     """
-    Retrieves ERA5-Land monthly climate data for a given bbox, variables, and start/end dates.
+    Retrieves ERA5 monthly climate data for a given bbox, variables, and start/end dates.
     Saves to disk in a single file for the entire period, as specified by dirname and prefix.
     Returns list with a single file path entry where data was downloaded, e.g. to open directly with xr.open_dataset().
     """
@@ -83,10 +86,9 @@ def download(
     client.check_authentication()
 
     # Determine the save path
-    files = []
-    save_file = f'{prefix}_{start_year}-{end_year}.nc'
+    save_file = f'{prefix}.nc'
     save_path = (Path(dirname) / save_file).resolve()
-    files.append(save_path)
+    files = [save_path]
 
     # Download or use existing file
     if overwrite is False and save_path.exists():
@@ -96,7 +98,7 @@ def download(
     else:
         # Submit job request
         remote = request_years(client=client, years=years, months=months, bbox=bbox, variables=variables, use_server_cache=use_server_cache)
-        
+
         # Wait for results and save to target path
         remote.download(save_path)
 

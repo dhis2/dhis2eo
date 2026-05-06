@@ -1,32 +1,35 @@
+import calendar
 import json
 import logging
-import os
 from pathlib import Path
+import os
+from datetime import date, timedelta
+import time
 
 from ecmwf.datastores import Client
 import xarray as xr
 
 from ...utils import force_logging
-from ....utils.types import DateLike, BBox
+from ....utils.time import iter_months
+from ....utils.types import BBox, DateLike
 
 logger = logging.getLogger(__name__)
 force_logging(logger)
 
 
-# Internal function to fetch data from the CDS API
-def request_years(client, years, months, bbox, variables, use_server_cache):
-    """Download monthly era5-land data"""
-
+# Internal function to fetch data from the API
+def request_years(client, years, months, days, bbox, variables, use_server_cache):
     # extract the coordinates from input bounding box
     xmin, ymin, xmax, ymax = map(float, bbox)
 
     # construct the query parameters
     params = {
-        "product_type": ["monthly_averaged_reanalysis"],
+        "product_type": "reanalysis",
         "variable": variables,
         "year": [str(year) for year in years],
         "month": [str(month).zfill(2) for month in months],
-        "time": ["00:00"],
+        "day": [str(day).zfill(2) for day in days],
+        "time": [f"{str(h).zfill(2)}:00" for h in range(0, 23 + 1)],
         "area": [ymax, xmin, ymin, xmax],  # notice how we reordered the bbox coordinate sequence
         "data_format": "netcdf",
         "download_format": "unarchived",
@@ -42,12 +45,13 @@ def request_years(client, years, months, bbox, variables, use_server_cache):
     logger.info("Downloading data from CDS API...")
     logger.info(f"Request parameters: \n{json.dumps(params)}")
     remote = client.submit(
-        "reanalysis-era5-land-monthly-means",
+        "reanalysis-era5-single-levels",
         params
     )
 
     # return
     return remote
+
 
 # Public API to retrieve data for bbox between start and end date
 def download(
@@ -61,7 +65,7 @@ def download(
     overwrite: bool = False,
 ):
     """
-    Retrieves ERA5-Land monthly climate data for a given bbox, variables, and start/end dates.
+    Retrieves ERA5 hourly climate data for a given bbox, variables, and start/end dates.
     Saves to disk in a single file for the entire period, as specified by dirname and prefix.
     Returns list with a single file path entry where data was downloaded, e.g. to open directly with xr.open_dataset().
     """
@@ -71,22 +75,26 @@ def download(
     start_year, start_month = map(int, start.split('-')[:2])
     end_year, end_month = map(int, end.split('-')[:2])
 
-    # Set correct years months
+    # Set correct years months days
     years = list(range(start_year, end_year+1))
     if len(years) == 1:
         months = list(range(start_month, end_month+1))
     else:
         months = list(range(1, 12+1))
+    if len(years) == 1 and len(months) == 1:
+        _, last_day = calendar.monthrange(years[0], months[0])
+        days = list(range(1, last_day))
+    else:
+        days = list(range(1, 31+1))
 
     # Create ecmwf client
     client = Client()
     client.check_authentication()
 
     # Determine the save path
-    files = []
-    save_file = f'{prefix}_{start_year}-{end_year}.nc'
+    save_file = f'{prefix}.nc'
     save_path = (Path(dirname) / save_file).resolve()
-    files.append(save_path)
+    files = [save_path]
 
     # Download or use existing file
     if overwrite is False and save_path.exists():
@@ -95,8 +103,8 @@ def download(
     
     else:
         # Submit job request
-        remote = request_years(client=client, years=years, months=months, bbox=bbox, variables=variables, use_server_cache=use_server_cache)
-        
+        remote = request_years(client=client, years=years, months=months, days=days, bbox=bbox, variables=variables, use_server_cache=use_server_cache)
+
         # Wait for results and save to target path
         remote.download(save_path)
 
