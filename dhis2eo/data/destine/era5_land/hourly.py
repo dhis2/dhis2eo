@@ -6,7 +6,7 @@ from datetime import date, timedelta
 
 import xarray as xr
 
-from ...utils import force_logging
+from ...utils import force_logging, open_zarr, select_ds_region, select_ds_month
 from ....utils.time import iter_months
 from ....utils.types import BBox, DateLike
 
@@ -14,68 +14,9 @@ logger = logging.getLogger(__name__)
 force_logging(logger)
 
 
-# Requirements: 
-# Access to DestinE datasets requires registering an account with DestinE Earth Data Hub.
-# Free accounts have a monthly request limit of 500,000, and can be checked on user account page.
-# Authentication is handled by xarray and aiohttp and requires a .netrc (unix) or _netrc (windows) file
-# in user's home folder. 
-# see: https://earthdatahub.destine.eu/getting-started
-
 # Note:
 # Full dataset details and list of variables:
 # https://earthdatahub.destine.eu/collections/era5/datasets/reanalysis-era5-land
-
-
-# Internal functions to get data from zarr
-def open_zarr(variables):
-    # zarr path
-    zarr_path = "https://data.earthdatahub.destine.eu/era5/reanalysis-era5-land-no-antartica-v0.zarr"
-
-    # open with xarray
-    logger.info(f'Opening zarr archive from {zarr_path}')
-    ds = xr.open_dataset(
-        zarr_path,
-        storage_options={"client_kwargs":{"trust_env":True}},
-        chunks={},
-        engine="zarr",
-    )
-
-    # subset to only the specified variables
-    ds = ds[variables]
-
-    return ds
-
-def get_zarr_region(ds, bbox):
-    # convert ds longitudes from 0 to 360 to -180 to 180
-    logger.info('Correcting longitude coords to range -180 to 180')
-    ds = ds.assign_coords(longitude=((ds.longitude + 180) % 360 - 180)).sortby("longitude")
-
-    # extract the coordinates from input bounding box
-    logger.info(f'Computing bbox to use for subsetting')
-    xmin, ymin, xmax, ymax = map(float, bbox)
-
-    # add padding to include edge pixels
-    xres = abs(float(ds.longitude.diff('longitude').median()))
-    yres = abs(float(ds.latitude.diff('latitude').median()))
-    xmin, xmax = xmin - xres, xmax + xres
-    ymin, ymax = ymin - yres, ymax + yres
-
-    # filter to bbox coords
-    logger.info(f'Subsetting zarr archive to bbox with padding: {xmin} {ymin} {xmax} {ymax}')
-    ds = ds.sel(longitude=slice(xmin, xmax), latitude=slice(ymax, ymin))
-
-    return ds
-
-def get_zarr_month(ds, year, month):
-    # turn time query parameters into xarray selection
-    _, last_day = calendar.monthrange(year, month)
-    from_date = f"{year}-{month:02d}-01"
-    to_date = f"{year}-{month:02d}-{last_day:02d}"
-    
-    logger.info(f'Subsetting zarr archive to date range: {from_date} to {to_date}')
-    ds = ds.sel(valid_time=slice(from_date, to_date))
-
-    return ds
 
 
 # Public API to retrieve data for bbox between start and end date
@@ -94,6 +35,9 @@ def download(
     Returns list of file paths where data was downloaded, e.g. to use with xr.open_mfdataset().
     """
     os.makedirs(dirname, exist_ok=True)
+
+    # Zarr path
+    zarr_path = "https://data.earthdatahub.destine.eu/era5/reanalysis-era5-land-no-antartica-v0.zarr"
 
     # Parse dates
     start_year, start_month = map(int, start.split('-')[:2])
@@ -133,13 +77,13 @@ def download(
         else:
             if zarr is None:
                 # Open the full zarr archive
-                zarr = open_zarr(variables)
+                zarr = open_zarr(zarr_path, variables)
 
                 # Restrict to bbox
-                zarr = get_zarr_region(zarr, bbox)
+                zarr = select_ds_region(zarr, bbox, x_dim='longitude', y_dim='latitude', fix_360_longitude=True)
 
             # Fetch zarr data for the month
-            ds = get_zarr_month(zarr, year=year, month=month)
+            ds = select_ds_month(zarr, year=year, month=month, time_dim='valid_time')
 
             # Save to target path
             logger.info("Saving data from DestinE Earth Data Hub...")
