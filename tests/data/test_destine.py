@@ -6,7 +6,7 @@ import pytest
 import geopandas as gpd
 import xarray as xr
 
-from dhis2eo.data.destine import era5, era5_land
+from dhis2eo.data.destine import era5, era5_land, elevation
 from dhis2eo.utils.time import months_ago
 
 DATA_DIR = Path(__file__).parent.parent / "test_data"
@@ -102,7 +102,7 @@ def test_download_hourly_era5_data():
     # download
     variables = ['t2m', 'tp']
     paths = era5.hourly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
-                                      variables=variables, overwrite=False)
+                                      variables=variables, overwrite=True)
     logging.info(paths)
     assert len(paths) == 3
 
@@ -145,3 +145,29 @@ def test_download_hourly_era5_data():
 #     # test opening the data
 #     ds = xr.open_dataset(paths[0])
 #     logging.info(ds)
+
+@pytest.mark.integration
+def test_download_elevation_data():
+    # download args
+    dirname = DATA_DIR / '../test_outputs/destine'
+    prefix = 'elevation_sierra_leone'
+
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    org_units = gpd.read_file(geojson_file)
+    bbox = org_units.total_bounds
+
+    # download
+    paths = elevation.static.download(bbox, dirname=dirname, prefix=prefix, 
+                                      overwrite=True)
+    logging.info(paths)
+    assert len(paths) == 1
+
+    # test opening multifile xarray
+    ds = xr.open_mfdataset(paths)
+    logging.info(ds)
+
+    # test visualize
+    #import matplotlib.pyplot as plt
+    #ds['dsm'].plot()
+    #plt.savefig(dirname / 'elevation.png')
