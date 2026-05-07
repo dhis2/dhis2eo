@@ -20,14 +20,14 @@ force_logging(logger)
 
 
 # Internal function to fetch data from the API
-def save_month(client, save_path, year, month, leadtimes, bbox, variables, use_server_cache):
+def save_month(client, save_path, year, month, leadtimes, bbox, variables, model, system, use_server_cache):
     # extract the coordinates from input bounding box
     xmin, ymin, xmax, ymax = map(float, bbox)
 
     # construct the query parameters
     params = {
-        "originating_centre": "ecmwf",  # seas5
-        "system": "51",  # seas5
+        "originating_centre": model,
+        "system": system,
         "variable": variables,
         "year": str(year),
         "month": [str(month).zfill(2)],
@@ -54,7 +54,7 @@ def save_month(client, save_path, year, month, leadtimes, bbox, variables, use_s
     # wait for results and save to temporary folder
     with tempfile.TemporaryDirectory(delete=True) as tmpdir:
         tmppth = Path(tmpdir) / f'{year}-{month}.zip'
-        remote.download(save_path)
+        remote.download(tmppth)
 
         # comes as zipfile, unzip to save path
         with zipfile.ZipFile(tmppth) as archive:
@@ -74,6 +74,8 @@ def download(
     dirname: str,
     prefix: str,
     variables: list[str],
+    model: str,
+    system: str,
     use_server_cache: bool = True,
     overwrite: bool = False,
 ):
@@ -114,7 +116,7 @@ def download(
         
         else:
             # Submit job request and save to file
-            save_month(client=client, save_path=save_path, year=year, month=month, leadtimes=leadtimes, bbox=bbox, variables=variables, use_server_cache=use_server_cache)
+            save_month(client=client, save_path=save_path, year=year, month=month, leadtimes=leadtimes, bbox=bbox, variables=variables, model=model, system=system, use_server_cache=use_server_cache)
 
     # return list of all file downloads
     return files

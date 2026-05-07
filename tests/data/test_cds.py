@@ -6,7 +6,7 @@ import pytest
 import geopandas as gpd
 import xarray as xr
 
-from dhis2eo.data.cds import era5_land, seas5
+from dhis2eo.data.cds import era5_land, seasonal
 from dhis2eo.utils.time import months_ago
 
 DATA_DIR = Path(__file__).parent.parent / "test_data"
@@ -135,10 +135,10 @@ def test_download_monthly_era5_data():
     logging.info(ds)
 
 @pytest.mark.integration
-def test_download_hourly_seas5_data():
+def test_download_hourly_seasonal_data():
     # download args
     dirname = DATA_DIR / '../test_outputs/cds'
-    prefix = 'seas5_hourly_sierra_leone'
+    prefix = 'seasonal_hourly_sierra_leone'
 
     # get bbox
     geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
@@ -151,10 +151,11 @@ def test_download_hourly_seas5_data():
 
     # download
     variables = ['2m_temperature', 'total_precipitation']
-    paths = seas5.hourly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
-                                  variables=variables, overwrite=False) # True
+    paths = seasonal.hourly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
+                                  variables=variables, model='ecmwf', system='51',  # i.e. SEAS5
+                                  overwrite=False) # True
     logging.info(paths)
-    assert len(paths) == 1
+    assert len(paths) == 2
 
     # test opening the data
     ds = xr.open_dataset(paths[0])
