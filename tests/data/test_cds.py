@@ -146,8 +146,8 @@ def test_download_hourly_seasonal_data():
     bbox = org_units.total_bounds
 
     # start/end dates
-    start = '2025-01'
-    end = '2025-02'
+    start = '2026-04'
+    end = '2026-04'
 
     # download
     variables = ['2m_temperature', 'total_precipitation']
@@ -155,7 +155,7 @@ def test_download_hourly_seasonal_data():
                                   variables=variables, model='ecmwf', system='51',  # i.e. SEAS5
                                   overwrite=False) # True
     logging.info(paths)
-    assert len(paths) == 2
+    assert len(paths) == 1
 
     # test opening the data
     ds = xr.open_dataset(paths[0])

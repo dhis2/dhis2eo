@@ -25,9 +25,14 @@ def save_month(client, save_path, year, month, leadtimes, bbox, variables, model
     xmin, ymin, xmax, ymax = map(float, bbox)
 
     # construct the query parameters
+    # NOTE: for now we force only downloading forecasts from the first of month
+    # since most models indeed only have forecasts on 1st of month
+    # however many models also have new forecasts every single day, but just not
+    # sure how users should select which day between start-end dates. it would become 
+    # very slow to download all days since CDS request size limit peaks at ca 1 day per download
     params = {
         "originating_centre": model,
-        "system": system,
+        "system": str(system),
         "variable": variables,
         "year": str(year),
         "month": [str(month).zfill(2)],
@@ -50,20 +55,7 @@ def save_month(client, save_path, year, month, leadtimes, bbox, variables, model
         "seasonal-original-single-levels",
         params
     )
-
-    # wait for results and save to temporary folder
-    with tempfile.TemporaryDirectory(delete=True) as tmpdir:
-        tmppth = Path(tmpdir) / f'{year}-{month}.zip'
-        remote.download(tmppth)
-
-        # comes as zipfile, unzip to save path
-        with zipfile.ZipFile(tmppth) as archive:
-            # get archive member names
-            names = archive.namelist()
-
-            # copy contents of first member to save_path
-            with archive.open(names[0]) as fobj:
-                shutil.copyfileobj(fobj, save_path)
+    remote.download(save_path)
 
 
 # Public API to retrieve data for bbox between start and end date
@@ -98,14 +90,14 @@ def download(
     client.check_authentication()
 
     # Begin downloads
-    # NOTE: Although ecmwf-datastores allows asynch jobs, era5-land is limited to max 1 runnning job
+    # NOTE: Although ecmwf-datastores allows asynch jobs, seasonal dataset is limited to max 1 runnning job
     # ...so just doing it regular synchronously
     files = []
     for year, month in iter_months(start_year, start_month, end_year, end_month):
         logger.info(f'Month {year}-{month}')
 
         # Determine the save path
-        save_file = f'{prefix}.nc'
+        save_file = f'{prefix}_{year}-{month}.nc'
         save_path = (Path(dirname) / save_file).resolve()
         files.append(save_path)
 
