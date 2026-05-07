@@ -1,8 +1,8 @@
 import logging
 from pathlib import Path
 import os
-from datetime import date, timedelta
 from tempfile import TemporaryDirectory
+from concurrent.futures import ThreadPoolExecutor
 
 # Hack to prevent progress bars for each file download
 # This has to happen before importing ecmwf.opendata
@@ -15,6 +15,7 @@ def disabled_tqdm(*args, **kwargs):
 tqdm.tqdm = disabled_tqdm
 tqdm.notebook.tqdm = disabled_tqdm
 tqdm.auto.tqdm = disabled_tqdm
+logging.getLogger("multiurl").setLevel(logging.WARNING)
 
 from ecmwf.opendata import Client
 import xarray as xr
@@ -72,15 +73,19 @@ def fetch_day(client, day, bbox, variables):
     # define the full range of forecast steps: 0 to 144 hours every 3h, then 144 to 360 every 6h
     steps = list(range(0, 144 + 3, 3)) + list(range(150, 360 + 6, 6))
 
+    # create multithread downloader
+    max_threads = 10
+    downloader = ThreadPoolExecutor(max_workers=max_threads)
+
     # downloads go inside temp dir which handles the cleanup of ALL files generated inside it
     with TemporaryDirectory(prefix=f'forecast_{day}', delete=True) as tmpdir:
 
         # fetch one step at a time
         logger.debug(f'Downloading to temporary folder {tmpdir}')
-        files = []
-        for step in steps:
-            file = fetch_forecast_step(client, day, step, variables, dirname=tmpdir)
-            files.append(file)
+        files = list(downloader.map(
+            lambda step: fetch_forecast_step(client, day, step, variables, dirname=tmpdir),
+            steps,
+        ))
 
         # lazy open all global files
         logger.debug('Cropping to bbox')
