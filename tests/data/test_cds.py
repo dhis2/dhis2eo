@@ -6,7 +6,7 @@ import pytest
 import geopandas as gpd
 import xarray as xr
 
-from dhis2eo.data.cds import era5_land
+from dhis2eo.data.cds import era5_land, era5_drought
 from dhis2eo.utils.time import months_ago
 
 DATA_DIR = Path(__file__).parent.parent / "test_data"
@@ -126,6 +126,33 @@ def test_download_monthly_era5_data():
     # download
     variables = ['2m_temperature', 'total_precipitation']
     paths = era5_land.monthly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
+                                      variables=variables, overwrite=True)
+    logging.info(paths)
+    assert len(paths) == 1
+
+    # test opening the data
+    ds = xr.open_dataset(paths[0])
+    logging.info(ds)
+
+
+@pytest.mark.integration
+def test_download_monthly_era5drought_data():
+    # download args
+    dirname = DATA_DIR / '../test_outputs/cds'
+    prefix = 'era5drought_monthly_sierra_leone'
+
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    org_units = gpd.read_file(geojson_file)
+    bbox = org_units.total_bounds
+
+    # start/end dates
+    start = '2025'
+    end = '2026'
+
+    # download
+    variables = ['standardised_precipitation_index', 'standardised_precipitation_evapotranspiration_index']
+    paths = era5_drought.monthly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
                                       variables=variables, overwrite=True)
     logging.info(paths)
     assert len(paths) == 1
