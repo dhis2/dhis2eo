@@ -50,7 +50,7 @@ def download(
     # more reliable options with longer historical archive: aws, google, azure
 
     # model type
-    model = "ifs"
+    model = 'aifs-single'
 
     # init the client
     client = Client(
