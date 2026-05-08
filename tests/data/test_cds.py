@@ -6,7 +6,7 @@ import pytest
 import geopandas as gpd
 import xarray as xr
 
-from dhis2eo.data.cds import era5_land
+from dhis2eo.data.cds import era5_land, era5_heat
 from dhis2eo.utils.time import months_ago
 
 DATA_DIR = Path(__file__).parent.parent / "test_data"
@@ -132,4 +132,30 @@ def test_download_monthly_era5_data():
 
     # test opening the data
     ds = xr.open_dataset(paths[0])
+    logging.info(ds)
+
+@pytest.mark.integration
+def test_download_hourly_era5heat_data():
+    # download args
+    dirname = DATA_DIR / '../test_outputs/cds'
+    prefix = 'era5heat_hourly_sierra_leone'
+
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    org_units = gpd.read_file(geojson_file)
+    bbox = org_units.total_bounds
+
+    # start/end dates
+    start = '2026-03'
+    end = '2026-04'
+
+    # download
+    variables = ['universal_thermal_climate_index']
+    paths = era5_heat.hourly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
+                                      variables=variables, overwrite=False)
+    logging.info(paths)
+    assert len(paths) == 2
+
+    # test opening the data
+    ds = xr.open_mfdataset(paths)
     logging.info(ds)
