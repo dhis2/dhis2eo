@@ -43,6 +43,13 @@ def download(
     server: str = "aws", 
     overwrite: bool = False,
 ):
+    """
+    Retrieves ECMWF Open IFS (physics-based) hourly forecast data for a given bbox, variables, and start/end dates.
+    The `server` param can be set to one of multiple host services: aws (default), google, azure, 
+    and ecmwf (not recommended).
+    Saves to disk in daily files, as specified by dirname and prefix.
+    Returns list of file paths where data was downloaded, e.g. to use with xr.open_mfdataset().
+    """
     os.makedirs(dirname, exist_ok=True)
     
     # about the server param
