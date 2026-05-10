@@ -78,3 +78,34 @@ def test_download_dekadal_clms_ndvi():
     fig, ax = plt.subplots()
     ds['ndvi'].isel(time=0).plot(ax=ax)
     fig.savefig(dirname / 'clms_ndvi.png', dpi=300)
+
+@pytest.mark.integration
+def test_download_dekadal_clms_gpp():
+    # download args
+    dirname = DATA_DIR / '../test_outputs/cdse'
+    prefix = 'clms_gpp_sierra_leone'
+
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    org_units = gpd.read_file(geojson_file)
+    bbox = org_units.total_bounds
+
+    # start/end dates
+    start = '2025-01'
+    end = '2025-02'
+
+    # download
+    paths = clms_gpp.dekadal.download(start, end, bbox, dirname=dirname, prefix=prefix, 
+                                       overwrite=True)
+    logging.info(paths)
+    assert len(paths) == 2
+
+    # test opening multifile xarray
+    ds = xr.open_mfdataset(paths) #, mask_and_scale=False)
+    logging.info(ds)
+
+    # test visualize
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    ds['gpp'].isel(time=0).plot(ax=ax)
+    fig.savefig(dirname / 'clms_gpp.png', dpi=300)
