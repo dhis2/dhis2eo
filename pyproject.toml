@@ -20,6 +20,7 @@ dependencies = [
     "aiohttp>=3.13,<4",
     "requests>=2.32,<3",
     "pystac-client==0.9.*",
+    "fsspec>=2026.4.*,<2027.*",
 ]
 
 [tool.setuptools.packages.find]
