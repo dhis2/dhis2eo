@@ -90,6 +90,11 @@ def group_stac_items_by_year(items):
     for year,subitems in groupby(sorted(items, key=key), key=key):
         yield year, list(subitems)
 
+def group_stac_items_by_month(items):
+    key = lambda item: (item.datetime.year, item.datetime.month)
+    for (year, month), subitems in groupby(sorted(items, key=key), key=key):
+        yield (year, month), list(subitems)
+
 def save_stac_asset(fs, item, asset_name, save_folder):
     url = item.assets[asset_name].href
     filename = Path(url).name

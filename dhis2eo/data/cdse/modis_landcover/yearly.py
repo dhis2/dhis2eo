@@ -83,7 +83,7 @@ def download(
 
     # process each tile
     files = []
-    for year, items in group_stac_items_by_year(search.items()):
+    for year, items in group_stac_items_by_time(search.items(), 'year'):
         logger.info(f'Year {year}')
 
         # Determine the save path

@@ -2,19 +2,19 @@ import os
 import logging
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-import time
 
 import numpy as np
+import xarray as xr
 
-from ..shared import connect_stac, read_rioxarray_window
+from ..shared import connect_stac, group_stac_items_by_month, read_rioxarray_window
 from ....utils.types import BBox
-from ....data.utils import force_logging
+from ...utils import force_logging
 
 logger = logging.getLogger(__name__)
 force_logging(logger)
 
-def fetch_month(url, year, month, bbox, var_name):
-    logger.info(f"Reading {year}-{month} -> {url}")
+def fetch_dekad(url, year, month, day, bbox, var_name):
+    #logger.info(f"Reading {year}-{month}-{day} -> {url}")
     #t = time.time()
 
     # read bbox of cloud hosted raster
@@ -32,10 +32,28 @@ def fetch_month(url, year, month, bbox, var_name):
     ds = ds.squeeze("band", drop=True)
 
     # Add day constant
-    ds = ds.expand_dims(time=[np.datetime64(f'{year}-{month:02d}')])
+    ds = ds.expand_dims(time=[np.datetime64(f'{year}-{month:02d}-{day:02d}')])
 
     # Return
     #logger.info(f'Downloaded {year}-{month} in {time.time()-t} seconds')
+    return ds
+
+def fetch_month(items, year, month, bbox, var_name):
+    # loop and download all month dekads
+    ds_list = []
+    for item in items:
+        # Get info from item
+        day = item.datetime.day
+        url = item.assets[f'ndvi300_{var_name}'].href
+        
+        # Get dekad from url
+        ds = fetch_dekad(url, year, month, day, bbox, var_name)
+        ds_list.append(ds)
+    
+    # merge dekads into month ds
+    ds = xr.merge(ds_list)
+
+    # return
     return ds
 
 def download(
@@ -47,7 +65,7 @@ def download(
     overwrite: bool = False,
 ) -> list[Path]:
     """
-    Retrieves CLMS Waterbodies 100m monthly data for a given start/end date, and bbox.
+    Retrieves CLMS NDVI 300m 10-daily data for a given start/end date, and bbox.
     Saves files to disk, as specified by dirname and prefix.
     """
     os.makedirs(dirname, exist_ok=True)
@@ -56,7 +74,7 @@ def download(
     catalog = connect_stac()
 
     # find all tiles for given bbox
-    collection_id = "clms_wb_global_100m_monthly_v1_cog"
+    collection_id = "clms_ndvi_global_300m_10daily_v3_cog"
     search = catalog.search(
         collections=[collection_id],
         bbox=bbox,
@@ -64,14 +82,10 @@ def download(
     )
 
     # process each tile
-    variable = "wb100_wb"  # or "wb100_qual" for level of water occurence, but for simplicity dont give user that option
+    variable = "ndvi"  # or "unc" for uncertainty of ndvi, but for simplicity dont give user that option
     files = []
-    for item in search.items():
-        logger.info(f'Tile {item}')
-
-        # Get info from tile
-        url = item.assets[variable].href
-        year, month = item.datetime.year, item.datetime.month
+    for (year, month), items in group_stac_items_by_month(search.items()):
+        logger.info(f'Month {year}-{month}')
 
         # Determine the save path
         save_file = f'{prefix}_{year}-{month:02d}.nc'
@@ -85,7 +99,7 @@ def download(
 
         else:
             # Download the data
-            ds = fetch_month(url, year=year, month=month, bbox=bbox, var_name=variable)
+            ds = fetch_month(items, year=year, month=month, bbox=bbox, var_name=variable)
 
             # Save to file
             ds.to_netcdf(save_path)
