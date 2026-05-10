@@ -1,0 +1,48 @@
+import logging
+from pathlib import Path
+from datetime import date, timedelta
+import pytest
+
+import geopandas as gpd
+import xarray as xr
+
+from dhis2eo.data.cdse import clms_water
+
+DATA_DIR = Path(__file__).parent.parent / "test_data"
+
+# set verbose logging (hacky for now)
+logging.basicConfig(
+    level=logging.INFO,  # or DEBUG for more details
+)
+
+
+@pytest.mark.integration
+def test_download_monthly_clms_water():
+    # download args
+    dirname = DATA_DIR / '../test_outputs/cdse'
+    prefix = 'clms_water_sierra_leone'
+
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    org_units = gpd.read_file(geojson_file)
+    bbox = org_units.total_bounds
+
+    # start/end dates
+    start = '2025-01'
+    end = '2025-12'
+
+    # download
+    paths = clms_water.monthly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
+                                        overwrite=True)
+    logging.info(paths)
+    assert len(paths) == 12
+
+    # test opening multifile xarray
+    ds = xr.open_mfdataset(paths) #, mask_and_scale=False)
+    logging.info(ds)
+
+    # test visualize
+    logging.info(bbox)
+    da = ds['wb100_wb'].coarsen(x=5, y=5, boundary="trim").max()
+    fig = da.plot(col='time', col_wrap=3).fig
+    fig.savefig(dirname / 'clms_water.png', dpi=300)
