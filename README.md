@@ -50,7 +50,13 @@ These principles help keep the project approachable and durable over time.
 
 ## Installation
 
-Until we make the first Github release, just install from the main Github repo:
+Install the latest released version from PyPI:
+
+```bash
+pip install dhis2eo
+```
+
+To test unreleased changes directly from GitHub:
 
 ```bash
 pip install git+https://github.com/dhis2/dhis2eo
