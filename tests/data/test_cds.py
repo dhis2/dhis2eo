@@ -6,7 +6,7 @@ import pytest
 import geopandas as gpd
 import xarray as xr
 
-from dhis2eo.data.cds import era5_land, era5_heat, era5_drought
+from dhis2eo.data.cds import era5_land, era5_heat, era5_drought, esa_landcover
 from dhis2eo.utils.time import months_ago
 
 DATA_DIR = Path(__file__).parent.parent / "test_data"
@@ -182,3 +182,37 @@ def test_download_monthly_era5drought_data():
     # test opening the data
     ds = xr.open_dataset(paths[0])
     logging.info(ds)
+    
+
+@pytest.mark.integration
+def test_download_yearly_esa_landcover():
+    # download args
+    dirname = DATA_DIR / '../test_outputs/cds'
+    prefix = 'esa_landcover_yearly_sierra_leone'
+
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    org_units = gpd.read_file(geojson_file)
+    bbox = org_units.total_bounds
+
+    # start/end dates
+    start = '2013'
+    end = '2022'
+
+    # download
+    paths = esa_landcover.yearly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
+                                          overwrite=False)
+    logging.info(paths)
+    assert len(paths) == 10
+
+    # test opening the data
+    ds = xr.open_mfdataset(paths)
+    logging.info(ds)
+
+    # test visualize
+    import matplotlib.pyplot as plt
+    import numpy as np
+    fig, ax = plt.subplots()
+    lc_classes = np.unique(ds['lccs_class'].values)
+    ds['lccs_class'].isel(time=-1).plot(ax=ax, levels=len(lc_classes), cmap='tab20')
+    fig.savefig(dirname / 'esa_landcover.png')
