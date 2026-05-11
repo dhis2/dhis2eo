@@ -1,0 +1,140 @@
+import calendar
+import json
+import logging
+from pathlib import Path
+import os
+from datetime import date, timedelta
+import time
+import tempfile
+import zipfile
+import shutil
+
+from ecmwf.datastores import Client
+import xarray as xr
+
+from ...utils import force_logging
+from ....utils.time import iter_months
+from ....utils.types import BBox, DateLike
+
+logger = logging.getLogger(__name__)
+force_logging(logger)
+
+
+# Internal function to execute a single monthly file download (API only allows one month at a time)
+def save_month(client, save_path, year, month, bbox, variables, use_server_cache):
+    # extract the coordinates from input bounding box
+    xmin, ymin, xmax, ymax = map(float, bbox)
+
+    # construct the query parameters
+    _, last_day = calendar.monthrange(year, month)
+    params = {
+        "variable": variables,
+        "date": [f"{year}-{month}-01/{year}-{month}-{last_day}"],
+        "time": [f"{str(h).zfill(2)}:00" for h in range(0, 21 + 1, 3)], # 3 hourly
+        "area": [ymax, xmin, ymin, xmax],  # notice how we reordered the bbox coordinate sequence
+        "data_format": "netcdf_zip",  # either zipped netcdf (preferred) or raw grib
+    }
+
+    # if use_server_cache is False, add tiny numeric flag to invalidate request hash
+    # see: https://forum.ecmwf.int/t/how-to-avoid-the-cds-cache-issue/905/2
+    if not use_server_cache:
+        unique_numeric_string = str(int(time.time()))
+        params['nocache'] = unique_numeric_string
+
+    # download the data with earthkit
+    logger.info("Downloading data from ADS API...")
+    logger.info(f"Request parameters: \n{json.dumps(params)}")
+    remote = client.submit(
+        "cams-global-reanalysis-eac4",
+        params
+    )
+
+    # download comes as zipfile with one nc file
+    # save to temp dir, and copy to save_path
+    with tempfile.TemporaryDirectory(delete=True) as tmpdir:
+        # download zipfile
+        zip_path = Path(tmpdir) / 'tempzip.zip'
+        remote.download(zip_path)
+
+        # extract all files to same folder
+        with zipfile.ZipFile(zip_path) as archive:
+            # get first and only file name
+            first_name = archive.namelist()[0]
+
+            # copy to save path
+            with archive.open(first_name) as source, open(save_path, 'wb') as target:
+                shutil.copyfileobj(source, target)
+
+
+# Public API to retrieve data for bbox between start and end date
+def download(
+    start: DateLike,
+    end: DateLike,
+    bbox: BBox,
+    dirname: str,
+    prefix: str,
+    variables: list[str],
+    use_server_cache: bool = True,
+    overwrite: bool = False,
+):
+    """
+    Retrieves CAMS EAC4 hourly atmospheric composition data for a given bbox, variables, and start/end dates.
+    Saves to disk in monthly files, as specified by dirname and prefix.
+    Returns list of file paths where data was downloaded, e.g. to use with xr.open_mfdataset().
+    """
+    os.makedirs(dirname, exist_ok=True)
+
+    # Parse dates
+    start_year, start_month = map(int, start.split('-')[:2])
+    end_year, end_month = map(int, end.split('-')[:2])
+
+    # Determine last date for which we can expect CAMS to be complete
+    # CAMS states they have roughly 6 months of lag, but from experience it can be up to 9 months
+    # Meaning only in Sept can we expect to have the data for Januar of the same year
+    # TODO: this should prob be changed to try anyway and instead try except for failures? 
+    current_date = date.today()
+    last_updated_date = current_date - timedelta(days=30*9)
+
+    # Create ecmwf client
+    # note that we must explicitly specify the ADS url
+    api_url = 'https://ads.atmosphere.copernicus.eu/api'
+    client = Client(api_url)
+    client.check_authentication()
+
+    # Begin downloads
+    # NOTE: Although ecmwf-datastores allows asynch jobs, cams is limited to max 1 runnning job
+    # ...so just doing it regular synchronously
+    files = []
+    for year, month in iter_months(start_year, start_month, end_year, end_month):
+        logger.info(f'Month {year}-{month}')
+
+        # Skip if month is expected to be incomplete
+        # Technically speaking CDS allows us to download monthly files with only some of the days.
+        # However, this introduces the issue of caching partial monthly downloads, where we would have to check if
+        # ...each file contains all days.
+        # As a simple solution, we instead check if the month is expected to be complete (based on the reported publishing lag of CAMS)
+        # ...and issue a warning that we don't download incomplete months. 
+        # I think this should be fine in the DHIS2 context where reporting tends to happen for each month.
+        if (year,month) > (last_updated_date.year, last_updated_date.month):
+            logger.warning(
+                f'Skipping downloads for months that are expected to be incomplete (~9 months of lag). '
+                f'Latest available date expected in CAMS EAC4: {last_updated_date.isoformat()}'
+            )
+            continue
+
+        # Determine the save path
+        save_file = f'{prefix}_{year}-{str(month).zfill(2)}.nc'
+        save_path = (Path(dirname) / save_file).resolve()
+        files.append(save_path)
+
+        # Download or use existing file
+        if overwrite is False and save_path.exists():
+            # File already exist, load from file instead
+            logger.info(f'File already downloaded: {save_path}')
+        
+        else:
+            # Submit job request
+            save_month(client=client, save_path=save_path, year=year, month=month, bbox=bbox, variables=variables, use_server_cache=use_server_cache)
+
+    # return list of all file downloads
+    return files
