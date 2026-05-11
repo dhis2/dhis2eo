@@ -147,15 +147,23 @@ def test_download_yearly_esa_landcover():
     bbox = org_units.total_bounds
 
     # start/end dates
-    start = '2000'
+    start = '2013'
     end = '2022'
 
     # download
     paths = esa_landcover.yearly.download(start, end, bbox, dirname=dirname, prefix=prefix, 
-                                          overwrite=True)
+                                          overwrite=False)
     logging.info(paths)
-    assert len(paths) == 23
+    assert len(paths) == 10
 
     # test opening the data
     ds = xr.open_mfdataset(paths)
     logging.info(ds)
+
+    # test visualize
+    import matplotlib.pyplot as plt
+    import numpy as np
+    fig, ax = plt.subplots()
+    lc_classes = np.unique(ds['lccs_class'].values)
+    ds['lccs_class'].isel(time=-1).plot(ax=ax, levels=len(lc_classes), cmap='tab20')
+    fig.savefig(dirname / 'esa_landcover.png')

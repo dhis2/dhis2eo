@@ -1,6 +1,9 @@
 import json
 import logging
 import os
+import tempfile
+import zipfile
+import shutil
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
@@ -22,13 +25,14 @@ def save_year(client, save_path, year, bbox, use_server_cache):
     xmin, ymin, xmax, ymax = map(float, bbox)
 
     # construct the query parameters
+    if year <= 2015:
+        version = "v2_0_7cds"
+    else:
+        version = "v2_1_1"
     params = {
         "variable": "all",
-        "year": [year],
-        "version": [
-            "v2_0_7cds",
-            "v2_1_1"
-        ],
+        "year": [str(year)],
+        "version": [version],
         "area": [ymax, xmin, ymin, xmax],  # notice how we reordered the bbox coordinate sequence
     }
 
@@ -47,7 +51,17 @@ def save_year(client, save_path, year, bbox, use_server_cache):
     )
 
     # Wait for results and save to target path
-    remote.download(save_path)
+    with tempfile.TemporaryDirectory(delete=True) as tmpdir:
+        # download zipfile to temporary folder
+        temp_path = Path(tmpdir) / 'temp_zip.zip'
+        remote.download(temp_path)
+
+        # extract the only file from zipfile to save_path
+        with zipfile.ZipFile(temp_path) as archive:
+            first_name = archive.namelist()[0]
+            with archive.open(first_name) as source, open(save_path, 'wb') as target:
+                shutil.copyfileobj(source, target)
+
 
 # Public API to retrieve data for bbox between start and end date
 def download(
