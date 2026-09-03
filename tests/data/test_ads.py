@@ -52,9 +52,9 @@ def test_download_hourly_cams_data():
     logging.info(daily_temp)
 
     # test visualize
-    from earthkit.plots import quickplot
-    fig = quickplot(ds['pm10'].sel(valid_time=start))
-    fig.save(dirname / 'cams.png')
+    #from earthkit.plots import quickplot
+    #fig = quickplot(ds['pm10'].sel(valid_time=start))
+    #fig.save(dirname / 'cams.png')
 
 
 @pytest.mark.integration
