@@ -115,6 +115,7 @@ def download(
             downloader.submit(save_year, client, save_path, year, bbox, use_server_cache)
 
     # Wait
+    # TODO: check each submitted thread that it completed successfully and only return successful downloads
     downloader.shutdown(wait=True)
 
     # return list of all file downloads
