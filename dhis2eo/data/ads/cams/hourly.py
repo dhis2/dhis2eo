@@ -90,7 +90,7 @@ def download(
 
     # Determine last date for which we can expect CAMS to be complete
     # CAMS states they have roughly 6 months of lag, but from experience it can be up to 9 months
-    # Meaning only in Sept can we expect to have the data for Januar of the same year
+    # Meaning only in Oct can we expect to have the data for January of the same year
     # TODO: this should prob be changed to try anyway and instead try except for failures? 
     current_date = date.today()
     last_updated_date = current_date - timedelta(days=30*9)
@@ -115,7 +115,7 @@ def download(
         # As a simple solution, we instead check if the month is expected to be complete (based on the reported publishing lag of CAMS)
         # ...and issue a warning that we don't download incomplete months. 
         # I think this should be fine in the DHIS2 context where reporting tends to happen for each month.
-        if (year,month) > (last_updated_date.year, last_updated_date.month):
+        if (year,month) >= (last_updated_date.year, last_updated_date.month):
             logger.warning(
                 f'Skipping downloads for months that are expected to be incomplete (~9 months of lag). '
                 f'Latest available date expected in CAMS EAC4: {last_updated_date.isoformat()}'
