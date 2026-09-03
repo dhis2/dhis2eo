@@ -1,7 +1,6 @@
 import os
 import logging
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import xarray as xr

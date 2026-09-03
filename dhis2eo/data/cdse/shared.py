@@ -24,8 +24,8 @@ S3_PROFILE = 'cdse'  # profile name containing the s3 credentials in ~/.aws/cred
 def save_s3_file(fs, fs_path, save_path):
     logger.info(f'Downloading file {fs_path} to {save_path}')
 
-    logger.info(f"Testing fs.ls on eodata: {fs.ls('eodata')}")
-    logger.info(f"Testing fs.exists on path: {fs.exists(fs_path)}")
+    #logger.info(f"Testing fs.ls on eodata: {fs.ls('eodata')}")
+    #logger.info(f"Verifying that S3 file path exists: {fs.exists(fs_path)}")
     
     fs.get(fs_path, save_path)
 
@@ -70,10 +70,10 @@ def read_rioxarray_window(url, bbox):
             lock=False,
         )
     
-    # Read only the bbox window
-    xmin, ymin, xmax, ymax = bbox
-    da = da.rio.clip_box(minx=xmin, miny=ymin, maxx=xmax, maxy=ymax)
-    da = da.load()
+        # Read only the bbox window
+        xmin, ymin, xmax, ymax = bbox
+        da = da.rio.clip_box(minx=xmin, miny=ymin, maxx=xmax, maxy=ymax)
+        da = da.load()
     
     return da
 

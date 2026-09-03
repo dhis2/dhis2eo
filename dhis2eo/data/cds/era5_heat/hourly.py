@@ -32,7 +32,6 @@ def save_month(client, save_path, year, month, bbox, variables, use_server_cache
         "variable": variables,
         "version": "1_1",
         "product_type": "intermediate_dataset",
-        "variable": variables,
         "year": [str(year)],
         "month": [str(month).zfill(2)],
         "day": days,
