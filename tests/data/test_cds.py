@@ -168,6 +168,11 @@ def test_download_monthly_era5drought_data():
     dirname = DATA_DIR / '../test_outputs/cds'
     prefix = 'era5drought_monthly_sierra_leone'
 
+    # get bbox
+    geojson_file = DATA_DIR / "sierra-leone-districts.geojson"
+    org_units = gpd.read_file(geojson_file)
+    bbox = org_units.total_bounds
+
     # start/end dates
     start = '2025'
     end = '2026'
